@@ -1,7 +1,7 @@
 package xray
 
 import (
-	shttp "net/http"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -18,7 +18,7 @@ func TestSpanContextFromRequest(t *testing.T) {
 	)
 
 	t.Run("no header", func(t *testing.T) {
-		req := httptest.NewRequest(shttp.MethodGet, "http://localhost/", nil)
+		req := httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
 		_, ok := format.SpanContextFromRequest(req)
 		if ok {
 			t.Errorf("expected false; got true")
@@ -27,7 +27,7 @@ func TestSpanContextFromRequest(t *testing.T) {
 
 	t.Run("traceID only", func(t *testing.T) {
 		var (
-			req           = httptest.NewRequest(shttp.MethodGet, "http://localhost/", nil)
+			req           = httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
 			amazonTraceID = xray.MakeAmazonTraceID(traceID)
 		)
 		req.Header.Set(httpHeader, amazonTraceID)
@@ -49,7 +49,7 @@ func TestSpanContextFromRequest(t *testing.T) {
 
 	t.Run("traceID only with root prefix", func(t *testing.T) {
 		var (
-			req           = httptest.NewRequest(shttp.MethodGet, "http://localhost/", nil)
+			req           = httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
 			amazonTraceID = xray.MakeAmazonTraceID(traceID)
 		)
 		req.Header.Set(httpHeader, header.RootPrefix+amazonTraceID)
@@ -71,7 +71,7 @@ func TestSpanContextFromRequest(t *testing.T) {
 
 	t.Run("traceID with parentSpanID", func(t *testing.T) {
 		var (
-			req           = httptest.NewRequest(shttp.MethodGet, "http://localhost/", nil)
+			req           = httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
 			amazonTraceID = xray.MakeAmazonTraceID(traceID)
 			amazonSpanID  = xray.MakeAmazonSpanID(spanID)
 		)
@@ -94,7 +94,7 @@ func TestSpanContextFromRequest(t *testing.T) {
 
 	t.Run("traceID with parentSpanID and sampled", func(t *testing.T) {
 		var (
-			req           = httptest.NewRequest(shttp.MethodGet, "http://localhost/", nil)
+			req           = httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
 			amazonTraceID = xray.MakeAmazonTraceID(traceID)
 			amazonSpanID  = xray.MakeAmazonSpanID(spanID)
 		)
@@ -117,7 +117,7 @@ func TestSpanContextFromRequest(t *testing.T) {
 
 	t.Run("bad traceID", func(t *testing.T) {
 		var (
-			req = httptest.NewRequest(shttp.MethodGet, "http://localhost/", nil)
+			req = httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
 		)
 		req.Header.Set(httpHeader, "1-bad-junk")
 
@@ -129,7 +129,7 @@ func TestSpanContextFromRequest(t *testing.T) {
 
 	t.Run("bad spanID", func(t *testing.T) {
 		var (
-			req           = httptest.NewRequest(shttp.MethodGet, "http://localhost/", nil)
+			req           = httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
 			amazonTraceID = xray.MakeAmazonTraceID(traceID)
 		)
 		req.Header.Set(httpHeader, prefixRoot+amazonTraceID+";"+prefixParent+"junk-span")
@@ -146,7 +146,7 @@ func TestSpanContextToRequest(t *testing.T) {
 		format  = &HTTPFormat{}
 		traceID = trace.TraceID{0x5a, 0x96, 0x12, 0xa2, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 0x10}
 		spanID  = trace.SpanID{1, 2, 3, 4, 5, 6, 7, 8}
-		req, _  = shttp.NewRequest(shttp.MethodGet, "http://localhost/", nil)
+		req, _  = http.NewRequest(http.MethodGet, "http://localhost/", nil)
 	)
 
 	t.Run("trace on", func(t *testing.T) {

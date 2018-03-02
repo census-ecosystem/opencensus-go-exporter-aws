@@ -44,16 +44,16 @@ type httpResponse struct {
 	ContentLength int64 `json:"content_length,omitempty"`
 }
 
-type http struct {
+type httpReqResp struct {
 	Request  httpRequest  `json:"request"`
 	Response httpResponse `json:"response"`
 }
 
-func makeHttp(attributes map[string]interface{}) (map[string]interface{}, *http, string) {
+func makeHttp(attributes map[string]interface{}) (map[string]interface{}, *httpReqResp, string) {
 	var (
 		host     string
-		http     http
-		filtered = map[string]interface{}{}
+		http     httpReqResp
+		filtered  = map[string]interface{}{}
 	)
 
 	for key, value := range attributes {
