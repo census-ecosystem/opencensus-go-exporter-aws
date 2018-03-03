@@ -1,7 +1,7 @@
 xray
 -------
 
-`xray` package defines an exporter that publishes spans to `AWS X-Ray`.
+`aws` package defines an exporter that publishes spans to `AWS X-Ray`.
 
 #### To Do 
 

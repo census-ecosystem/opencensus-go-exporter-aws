@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package xray contains an trace exporter for AWS X-Ray.
-package xray
+package aws
 
 import (
 	"context"

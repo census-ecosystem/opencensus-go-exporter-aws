@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package xray
+package aws
 
 import (
 	"bytes"
@@ -129,7 +129,7 @@ type segment struct {
 	Service *service `json:"service,omitempty"`
 
 	// Http - optional xray specific http settings
-	Http *http `json:"http,omitempty"`
+	Http *httpReqResp `json:"http,omitempty"`
 
 	// Error - boolean indicating that a client error occurred
 	// (response status code was 4XX Client Error).
