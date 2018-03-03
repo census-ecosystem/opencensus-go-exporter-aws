@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package amazon contains a propagation.HTTPFormat implementation
-// for Amazon services: ELB, ALB, Lambda, etc.
-package xray
+package aws
 
 import (
 	"net/http"

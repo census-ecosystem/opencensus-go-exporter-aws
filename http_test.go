@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package xray_test
+package aws_test
 
 import (
 	"encoding/json"
