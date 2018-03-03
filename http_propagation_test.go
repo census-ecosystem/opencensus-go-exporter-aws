@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/aws/aws-xray-sdk-go/header"
-	"go.opencensus.io/exporter/xray"
 	"go.opencensus.io/trace"
 )
 
@@ -42,7 +41,7 @@ func TestSpanContextFromRequest(t *testing.T) {
 	t.Run("traceID only", func(t *testing.T) {
 		var (
 			req           = httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
-			amazonTraceID = xray.MakeAmazonTraceID(traceID)
+			amazonTraceID = MakeAmazonTraceID(traceID)
 		)
 		req.Header.Set(httpHeader, amazonTraceID)
 
@@ -64,7 +63,7 @@ func TestSpanContextFromRequest(t *testing.T) {
 	t.Run("traceID only with root prefix", func(t *testing.T) {
 		var (
 			req           = httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
-			amazonTraceID = xray.MakeAmazonTraceID(traceID)
+			amazonTraceID = MakeAmazonTraceID(traceID)
 		)
 		req.Header.Set(httpHeader, header.RootPrefix+amazonTraceID)
 
@@ -86,8 +85,8 @@ func TestSpanContextFromRequest(t *testing.T) {
 	t.Run("traceID with parentSpanID", func(t *testing.T) {
 		var (
 			req           = httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
-			amazonTraceID = xray.MakeAmazonTraceID(traceID)
-			amazonSpanID  = xray.MakeAmazonSpanID(spanID)
+			amazonTraceID = MakeAmazonTraceID(traceID)
+			amazonSpanID  = MakeAmazonSpanID(spanID)
 		)
 		req.Header.Set(httpHeader, prefixRoot+amazonTraceID+";"+prefixParent+amazonSpanID)
 
@@ -109,8 +108,8 @@ func TestSpanContextFromRequest(t *testing.T) {
 	t.Run("traceID with parentSpanID and sampled", func(t *testing.T) {
 		var (
 			req           = httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
-			amazonTraceID = xray.MakeAmazonTraceID(traceID)
-			amazonSpanID  = xray.MakeAmazonSpanID(spanID)
+			amazonTraceID = MakeAmazonTraceID(traceID)
+			amazonSpanID  = MakeAmazonSpanID(spanID)
 		)
 		req.Header.Set(httpHeader, prefixRoot+amazonTraceID+";"+prefixParent+amazonSpanID+";"+prefixSampled+"1")
 
@@ -144,7 +143,7 @@ func TestSpanContextFromRequest(t *testing.T) {
 	t.Run("bad spanID", func(t *testing.T) {
 		var (
 			req           = httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
-			amazonTraceID = xray.MakeAmazonTraceID(traceID)
+			amazonTraceID = MakeAmazonTraceID(traceID)
 		)
 		req.Header.Set(httpHeader, prefixRoot+amazonTraceID+";"+prefixParent+"junk-span")
 

@@ -24,9 +24,8 @@ import (
 
 	"github.com/aws/aws-sdk-go/service/xray"
 	"github.com/aws/aws-sdk-go/service/xray/xrayiface"
-	ocxray "go.opencensus.io/exporter/xray"
+	"go.opencensus.io/exporter/aws"
 	"go.opencensus.io/plugin/ochttp"
-	"go.opencensus.io/plugin/ochttp/propagation/amazon"
 	"go.opencensus.io/trace"
 )
 
@@ -54,20 +53,20 @@ func handle(name string) http.HandlerFunc {
 func TestHttp(t *testing.T) {
 	var (
 		api         = &mockSegments{ch: make(chan string, 1)}
-		exporter, _ = ocxray.NewExporter(ocxray.WithAPI(api), ocxray.WithBufferSize(1))
+		exporter, _ = aws.NewExporter(aws.WithAPI(api), aws.WithBufferSize(1))
 	)
 
 	trace.RegisterExporter(exporter)
 	trace.SetDefaultSampler(trace.AlwaysSample())
 
 	var h = &ochttp.Handler{
-		Propagation: &amazon.HTTPFormat{},
+		Propagation: &aws.HTTPFormat{},
 		Handler:     handle("web"),
 	}
 
 	var (
 		traceID       = trace.TraceID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
-		amazonTraceID = ocxray.MakeAmazonTraceID(traceID)
+		amazonTraceID = aws.MakeAmazonTraceID(traceID)
 		req, _        = http.NewRequest(http.MethodGet, "http://www.example.com/index", strings.NewReader("hello"))
 		w             = httptest.NewRecorder()
 	)
