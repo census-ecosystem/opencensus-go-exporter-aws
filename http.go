@@ -67,7 +67,7 @@ func makeHttp(attributes map[string]interface{}) (map[string]interface{}, *httpR
 	var (
 		host     string
 		http     httpReqResp
-		filtered  = map[string]interface{}{}
+		filtered = map[string]interface{}{}
 	)
 
 	for key, value := range attributes {
