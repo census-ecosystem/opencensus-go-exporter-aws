@@ -13,4 +13,4 @@
 // limitations under the License.
 
 // Package aws provides Exporter support for AWS XRay for traces.
-package aws // import "go.opencensus.io/exporter/aws"
+package aws
