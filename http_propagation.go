@@ -18,7 +18,6 @@ import (
 	"net/http"
 	"strings"
 
-	"go.opencensus.io/exporter/xray"
 	"go.opencensus.io/trace"
 	"go.opencensus.io/trace/propagation"
 )
@@ -72,12 +71,12 @@ func parseHeader(h string) (trace.SpanContext, bool) {
 		}
 	}
 
-	traceID, err := xray.ParseAmazonTraceID(amazonTraceID)
+	traceID, err := ParseAmazonTraceID(amazonTraceID)
 	if err != nil {
 		return trace.SpanContext{}, false
 	}
 
-	spanID, err := xray.ParseAmazonSpanID(parentSpanID)
+	spanID, err := ParseAmazonSpanID(parentSpanID)
 	if err != nil {
 		return trace.SpanContext{}, false
 	}
@@ -108,8 +107,8 @@ func (f *HTTPFormat) SpanContextFromRequest(req *http.Request) (sc trace.SpanCon
 func (f *HTTPFormat) SpanContextToRequest(sc trace.SpanContext, req *http.Request) {
 	var (
 		header        = make([]byte, 0, 64)
-		amazonTraceID = xray.MakeAmazonTraceID(sc.TraceID)
-		amazonSpanID  = xray.MakeAmazonSpanID(sc.SpanID)
+		amazonTraceID = MakeAmazonTraceID(sc.TraceID)
+		amazonSpanID  = MakeAmazonSpanID(sc.SpanID)
 	)
 
 	header = append(header, prefixRoot...)
