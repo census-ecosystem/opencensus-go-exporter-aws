@@ -24,7 +24,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/service/xray"
 	"github.com/aws/aws-sdk-go/service/xray/xrayiface"
-	"go.opencensus.io/exporter/aws"
+	"github.com/census-instrumentation/opencensus-go-exporter-aws"
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/trace"
 )
