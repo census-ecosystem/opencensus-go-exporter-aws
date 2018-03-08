@@ -135,6 +135,21 @@ type Exporter struct {
 	closed bool              // indicates Exporter is closed.  any additional spans will be dropped
 }
 
+// makeApi constructs an instance of the aws xray api
+func makeApi() (*xray.XRay, error) {
+	region := os.Getenv("AWS_DEFAULT_REGION")
+	if region == "" {
+		region = os.Getenv("AWS_REGION")
+	}
+
+	config := aws.Config{Region: aws.String(region)}
+	s, err := session.NewSession(&config)
+	if err != nil {
+		return nil, err
+	}
+	return xray.New(s), nil
+}
+
 // buildConfig from options
 func buildConfig(opts ...Option) (config, error) {
 	var c config
@@ -155,11 +170,11 @@ func buildConfig(opts ...Option) (config, error) {
 		c.bufferSize = defaultBufferSize
 	}
 	if c.api == nil {
-		s, err := session.NewSession()
+		api, err := makeApi()
 		if err != nil {
 			return config{}, err
 		}
-		c.api = xray.New(s)
+		c.api = api
 	}
 
 	return c, nil
