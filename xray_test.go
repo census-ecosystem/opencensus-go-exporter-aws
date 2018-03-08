@@ -19,6 +19,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"reflect"
 	"testing"
@@ -410,4 +412,57 @@ func TestClose(t *testing.T) {
 		}
 
 	})
+}
+
+func TestLookupRegionFromMetaData(t *testing.T) {
+	testCases := map[string]struct {
+		Input    string
+		Want     string
+		HasError bool
+	}{
+		"happy path": {
+			Input: "us-west-2a",
+			Want:  "us-west-2",
+		},
+		"future path": {
+			Input: "us-west-9000a",
+			Want:  "us-west-9000",
+		},
+		"empty content": {
+			Input:    "",
+			Want:     "",
+			HasError: true,
+		},
+		"badly formatted": {
+			Input:    "blah",
+			Want:     "",
+			HasError: true,
+		},
+	}
+
+	for label, tc := range testCases {
+		t.Run(label, func(t *testing.T) {
+			clientDo = func(req *http.Request) (*http.Response, error) {
+				w := httptest.NewRecorder()
+				w.WriteHeader(http.StatusOK)
+				w.WriteString(tc.Input)
+				return w.Result(), nil
+			}
+
+			region, err := lookupRegionFromMetaData()
+			if tc.HasError {
+				if err == nil {
+					t.Errorf("want not nil; got nil")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("want nil; got %v", err)
+				}
+			}
+
+			if region != tc.Want {
+				t.Errorf("want %v; got %v", tc.Want, region)
+			}
+		})
+	}
 }

@@ -16,9 +16,13 @@ package aws
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
+	"regexp"
 	"sync"
 	"time"
 
@@ -44,6 +48,7 @@ const (
 )
 
 type config struct {
+	region     string                // aws region; for sending to another region's xray
 	output     io.Writer             // output error messages
 	api        xrayiface.XRayAPI     // use specific api instance
 	onExport   func(export OnExport) // callback on publish
@@ -61,6 +66,13 @@ type optionFunc func(c *config)
 
 func (fn optionFunc) apply(c *config) {
 	fn(c)
+}
+
+// WithRegion - optional aws region to send xray messages to
+func WithRegion(region string) Option {
+	return optionFunc(func(c *config) {
+		c.region = region
+	})
 }
 
 // WithOutput - optional writer for error messages
@@ -135,13 +147,72 @@ type Exporter struct {
 	closed bool              // indicates Exporter is closed.  any additional spans will be dropped
 }
 
-// makeApi constructs an instance of the aws xray api
-func makeApi() (*xray.XRay, error) {
+var (
+	// extract region from aws availability zone
+	reRegion = regexp.MustCompile(`([^\-]+-[^\-]+-\d+)`)
+
+	// client exposed to simplify testing
+	clientDo = http.DefaultClient.Do
+)
+
+// lookupRegionFromMetaData attempts to determine region from aws metadata endpoint
+func lookupRegionFromMetaData() (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	req, _ := http.NewRequest(http.MethodGet, "http://169.254.169.254/latest/meta-data/placement/availability-zone", nil)
+	req = req.WithContext(ctx)
+
+	resp, err := clientDo(req)
+	if err != nil {
+		return "", fmt.Errorf("unable lookup region via http://169.254.169.254/latest/meta-data/placement/availability-zone - %v", err)
+	}
+	defer resp.Body.Close()
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("unable to read contents from http://169.254.169.254/latest/meta-data/placement/availability-zone - %v", err)
+	}
+
+	segments := reRegion.FindSubmatch(data)
+	if len(segments) == 0 {
+		return "", fmt.Errorf("unable to determine aws region from availability zone, %v", string(data))
+	}
+
+	return string(segments[1]), nil
+}
+
+func lookupRegion() (string, error) {
 	region := os.Getenv("AWS_DEFAULT_REGION")
 	if region == "" {
 		region = os.Getenv("AWS_REGION")
 	}
+	if region == "" {
+		v, err := lookupRegionFromMetaData()
+		if err != nil {
+			return "", err
+		}
+		region = v
+	}
 
+	return region, nil
+}
+
+// makeApi constructs an instance of the aws xray api
+func makeApi(region string) (*xray.XRay, error) {
+	if region == "" {
+		v, err := lookupRegion()
+		if err != nil {
+			return nil, err
+		}
+		region = v
+	}
+
+	// Region value will instruct the SDK where to make service API requests to. If is
+	// not provided in the environment the region must be provided before a service
+	// client request is made.
+	//
+	// https://docs.aws.amazon.com/sdk-for-go/api/aws/session/
 	config := aws.Config{Region: aws.String(region)}
 	s, err := session.NewSession(&config)
 	if err != nil {
@@ -170,7 +241,7 @@ func buildConfig(opts ...Option) (config, error) {
 		c.bufferSize = defaultBufferSize
 	}
 	if c.api == nil {
-		api, err := makeApi()
+		api, err := makeApi(c.region)
 		if err != nil {
 			return config{}, err
 		}
