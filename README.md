@@ -16,7 +16,7 @@ go get go.opencensus.io/exporter/aws
 - [x] ~~Publish spans in a separate goroutine~~
 - [x] ~~Support propagation of http spans~~
 - [x] ~~Support remote spans~~
-- [ ] Test distributed spans
+- [x] ~~Verified works with ELB/ALB~~
 - [x] ~~Report errors / exceptions~~
 - [x] ~~Publish partial segments; currently only completed segments are published to aws~~
 
