@@ -32,7 +32,23 @@ import (
 )
 
 func makeTraceUrl(region, traceID string) string {
-	return fmt.Sprintf("https://%v.console.aws.amazon.com/xray/home?region=us-west-2#/traces/%v\n", region, traceID)
+	return fmt.Sprintf("https://%v.console.aws.amazon.com/xray/home?region=%v#/traces/%v\n", region, region, traceID)
+}
+
+func makeOnExport(ch chan struct{}) func(export OnExport) {
+	region := os.Getenv("AWS_DEFAULT_REGION")
+	if region == "" {
+		region = os.Getenv("AWS_REGION")
+	}
+
+	return func(in OnExport) {
+		select {
+		case ch <- struct{}{}:
+		default:
+		}
+
+		fmt.Println(makeTraceUrl(region, in.TraceID))
+	}
 }
 
 func TestLiveExporter(t *testing.T) {
@@ -40,20 +56,8 @@ func TestLiveExporter(t *testing.T) {
 		t.SkipNow()
 	}
 
-	var published = make(chan struct{})
-	var onExport = func(in OnExport) {
-		select {
-		case <-published:
-		default:
-			close(published)
-		}
-
-		region := os.Getenv("AWS_DEFAULT_REGION")
-		if region == "" {
-			region = os.Getenv("AWS_REGION")
-		}
-		fmt.Println(makeTraceUrl(region, in.TraceID))
-	}
+	var published = make(chan struct{}, 1)
+	var onExport = makeOnExport(published)
 
 	exporter, err := NewExporter(WithOnExport(onExport), WithOrigin(OriginECS))
 	if err != nil {
@@ -84,6 +88,44 @@ func TestLiveExporter(t *testing.T) {
 	parent.End()
 
 	<-published // don't close until the message has been sent
+}
+
+func makeSpan(ctx context.Context, depth int) {
+	if depth == 0 {
+		return
+	}
+
+	ctx, span := trace.StartSpan(ctx, fmt.Sprintf("span-%v", depth))
+	defer span.End()
+
+	time.Sleep(20 * time.Millisecond)
+	defer time.Sleep(20 * time.Millisecond)
+
+	makeSpan(ctx, depth-1)
+}
+
+func TestLiveLargeNumberOfSpans(t *testing.T) {
+	if key, secret := os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"); key == "" || secret == "" {
+		t.SkipNow()
+	}
+
+	var published = make(chan struct{}, 2)
+	var onExport = makeOnExport(published)
+
+	exporter, err := NewExporter(WithOnExport(onExport), WithOrigin(OriginECS))
+	if err != nil {
+		t.Errorf("expected nil; got %v", err)
+	}
+
+	trace.RegisterExporter(exporter)
+	trace.SetDefaultSampler(trace.AlwaysSample())
+
+	makeSpan(context.Background(), 100) // deep span
+	makeSpan(context.Background(), 1)   // shallow span to force new call to onExport
+
+	// Then
+	<-published
+	<-published
 }
 
 type mockSegments struct {

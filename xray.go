@@ -43,8 +43,8 @@ const (
 	// defaultInterval - segments will be published at this frequency
 	defaultInterval = time.Second
 
-	// defaultBufSize - segments will be published if this many have been queued
-	defaultBufferSize = 100
+	// maxBufferSize - maximum number of segments that can be published in a single call
+	maxBufferSize = 50
 )
 
 type config struct {
@@ -237,8 +237,8 @@ func buildConfig(opts ...Option) (config, error) {
 	if c.interval <= 0 {
 		c.interval = defaultInterval
 	}
-	if c.bufferSize <= 0 {
-		c.bufferSize = defaultBufferSize
+	if c.bufferSize <= 0 || c.bufferSize > maxBufferSize {
+		c.bufferSize = maxBufferSize
 	}
 	if c.api == nil {
 		api, err := makeApi(c.region)
