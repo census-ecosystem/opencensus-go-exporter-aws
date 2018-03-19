@@ -20,5 +20,5 @@ go get go.opencensus.io/exporter/aws
 - [x] ~~Report errors / exceptions~~
 - [x] ~~Publish partial segments; currently only completed segments are published to aws~~
 
-[godoc-image]: https://godoc.org/go.opencensus.io/exporter/aws?status.svg
-[godoc-url]: https://godoc.org/go.opencensus.io/exporter/aws
+[godoc-image]: https://godoc.org/github.com/census-instrumentation/opencensus-go-exporter-aws?status.svg
+[godoc-url]: https://godoc.org/github.com/census-instrumentation/opencensus-go-exporter-aws
