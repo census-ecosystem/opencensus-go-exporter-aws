@@ -68,12 +68,12 @@ func TestLiveExporter(t *testing.T) {
 	trace.SetDefaultSampler(trace.AlwaysSample())
 
 	attributes := []trace.Attribute{
-		trace.StringAttribute{Key: "key", Value: "value"},
+		trace.StringAttribute("key", "value"),
 	}
 
 	ctx, parent := trace.StartSpan(context.Background(), "parent")
 	parent.Annotate(attributes, "did the thing")
-	parent.SetAttributes(trace.StringAttribute{Key: "hello", Value: "world"})
+	parent.AddAttributes(trace.StringAttribute("hello", "world"))
 
 	time.Sleep(75 * time.Millisecond)
 	_, child := trace.StartSpan(ctx, "child")
@@ -248,6 +248,10 @@ func TestExporter(t *testing.T) {
 }
 
 func TestOptions(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping test in short mode")
+	}
+
 	t.Run("SetOutput", func(t *testing.T) {
 		var output = os.Stderr
 		config, err := buildConfig(WithOutput(output))

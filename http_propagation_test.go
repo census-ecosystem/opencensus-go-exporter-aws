@@ -39,10 +39,8 @@ func TestSpanContextFromRequest(t *testing.T) {
 	})
 
 	t.Run("traceID only", func(t *testing.T) {
-		var (
-			req           = httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
-			amazonTraceID = MakeAmazonTraceID(traceID)
-		)
+		req := httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
+		amazonTraceID := ConvertToAmazonTraceID(traceID)
 		req.Header.Set(httpHeader, amazonTraceID)
 
 		sc, ok := format.SpanContextFromRequest(req)
@@ -61,10 +59,8 @@ func TestSpanContextFromRequest(t *testing.T) {
 	})
 
 	t.Run("traceID only with root prefix", func(t *testing.T) {
-		var (
-			req           = httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
-			amazonTraceID = MakeAmazonTraceID(traceID)
-		)
+		req := httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
+		amazonTraceID := ConvertToAmazonTraceID(traceID)
 		req.Header.Set(httpHeader, header.RootPrefix+amazonTraceID)
 
 		sc, ok := format.SpanContextFromRequest(req)
@@ -83,11 +79,9 @@ func TestSpanContextFromRequest(t *testing.T) {
 	})
 
 	t.Run("traceID with parentSpanID", func(t *testing.T) {
-		var (
-			req           = httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
-			amazonTraceID = MakeAmazonTraceID(traceID)
-			amazonSpanID  = MakeAmazonSpanID(spanID)
-		)
+		req := httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
+		amazonTraceID := ConvertToAmazonTraceID(traceID)
+		amazonSpanID := ConvertToAmazonSpanID(spanID)
 		req.Header.Set(httpHeader, prefixRoot+amazonTraceID+";"+prefixParent+amazonSpanID)
 
 		sc, ok := format.SpanContextFromRequest(req)
@@ -106,11 +100,9 @@ func TestSpanContextFromRequest(t *testing.T) {
 	})
 
 	t.Run("traceID with parentSpanID and sampled", func(t *testing.T) {
-		var (
-			req           = httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
-			amazonTraceID = MakeAmazonTraceID(traceID)
-			amazonSpanID  = MakeAmazonSpanID(spanID)
-		)
+		req := httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
+		amazonTraceID := ConvertToAmazonTraceID(traceID)
+		amazonSpanID := ConvertToAmazonSpanID(spanID)
 		req.Header.Set(httpHeader, prefixRoot+amazonTraceID+";"+prefixParent+amazonSpanID+";"+prefixSampled+"1")
 
 		sc, ok := format.SpanContextFromRequest(req)
@@ -141,10 +133,8 @@ func TestSpanContextFromRequest(t *testing.T) {
 	})
 
 	t.Run("bad spanID", func(t *testing.T) {
-		var (
-			req           = httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
-			amazonTraceID = MakeAmazonTraceID(traceID)
-		)
+		req := httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
+		amazonTraceID := ConvertToAmazonTraceID(traceID)
 		req.Header.Set(httpHeader, prefixRoot+amazonTraceID+";"+prefixParent+"junk-span")
 
 		_, ok := format.SpanContextFromRequest(req)

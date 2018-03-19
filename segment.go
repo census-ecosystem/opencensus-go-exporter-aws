@@ -153,7 +153,9 @@ type service struct {
 	Version string `json:"version,omitempty"`
 }
 
-// MakeTraceID – A unique identifier that connects all segments and subsegments
+// ConvertToAmazonTraceID converts a trace ID to the Amazon format.
+//
+// A trace ID unique identifier that connects all segments and subsegments
 // originating from a single client request.
 //  * A trace_id consists of three numbers separated by hyphens. For example,
 //    1-58406520-a006649127e371903a2de979. This includes:
@@ -162,7 +164,7 @@ type service struct {
 //  * For example, 10:00AM December 2nd, 2016 PST in epoch time is 1480615200 seconds,
 //    or 58406520 in hexadecimal.
 //  * A 96-bit identifier for the trace, globally unique, in 24 hexadecimal digits.
-func MakeAmazonTraceID(traceID trace.TraceID) string {
+func ConvertToAmazonTraceID(traceID trace.TraceID) string {
 	const (
 		// maxAge of 28 days.  AWS has a 30 day limit, let's be conservative rather than
 		// hit the limit
@@ -225,9 +227,9 @@ func ParseAmazonTraceID(t string) (trace.TraceID, error) {
 	return traceID, nil
 }
 
-// MakeAmazonSpanID generates an amazon spanID from a trace.SpanID - a 64-bit identifier
+// ConvertToAmazonSpanID generates an Amazon spanID from a trace.SpanID - a 64-bit identifier
 // for the segment, unique among segments in the same trace, in 16 hexadecimal digits.
-func MakeAmazonSpanID(v trace.SpanID) string {
+func ConvertToAmazonSpanID(v trace.SpanID) string {
 	if v == zeroSpanID {
 		return ""
 	}
@@ -343,7 +345,7 @@ func fixSegmentName(name string) string {
 
 func rawSegment(span *trace.SpanData) segment {
 	var (
-		traceID                 = MakeAmazonTraceID(span.TraceID)
+		traceID                 = ConvertToAmazonTraceID(span.TraceID)
 		startMicros             = span.StartTime.UnixNano() / int64(time.Microsecond)
 		startTime               = float64(startMicros) / 1e6
 		endMicros               = span.EndTime.UnixNano() / int64(time.Microsecond)
@@ -363,13 +365,13 @@ func rawSegment(span *trace.SpanData) segment {
 	}
 
 	return segment{
-		ID:          MakeAmazonSpanID(span.SpanID),
+		ID:          ConvertToAmazonSpanID(span.SpanID),
 		TraceID:     traceID,
 		Name:        name,
 		StartTime:   startTime,
 		EndTime:     endTime,
 		Namespace:   namespace,
-		ParentID:    MakeAmazonSpanID(span.ParentSpanID),
+		ParentID:    ConvertToAmazonSpanID(span.ParentSpanID),
 		Annotations: annotations,
 		Http:        http,
 		Error:       isError,

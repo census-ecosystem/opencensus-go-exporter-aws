@@ -107,8 +107,8 @@ func (f *HTTPFormat) SpanContextFromRequest(req *http.Request) (sc trace.SpanCon
 func (f *HTTPFormat) SpanContextToRequest(sc trace.SpanContext, req *http.Request) {
 	var (
 		header        = make([]byte, 0, 64)
-		amazonTraceID = MakeAmazonTraceID(sc.TraceID)
-		amazonSpanID  = MakeAmazonSpanID(sc.SpanID)
+		amazonTraceID = ConvertToAmazonTraceID(sc.TraceID)
+		amazonSpanID  = ConvertToAmazonSpanID(sc.SpanID)
 	)
 
 	header = append(header, prefixRoot...)
