@@ -64,12 +64,11 @@ func TestHttp(t *testing.T) {
 		Handler:     handle("web"),
 	}
 
-	var (
-		traceID       = trace.TraceID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
-		amazonTraceID = aws.MakeAmazonTraceID(traceID)
-		req, _        = http.NewRequest(http.MethodGet, "http://www.example.com/index", strings.NewReader("hello"))
-		w             = httptest.NewRecorder()
-	)
+	traceID := trace.TraceID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	amazonTraceID := aws.ConvertToAmazonTraceID(traceID)
+	req, _ := http.NewRequest(http.MethodGet, "http://www.example.com/index", strings.NewReader("hello"))
+
+	w := httptest.NewRecorder()
 	req.Header.Set(`X-Amzn-Trace-Id`, amazonTraceID)
 	req.Header.Set(`User-Agent`, "ua")
 

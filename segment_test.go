@@ -26,17 +26,15 @@ import (
 )
 
 func BenchmarkSerializeSegment(t *testing.B) {
-	var (
-		w       = bytes.NewBuffer(make([]byte, 0, 2048))
-		encoder = json.NewEncoder(w)
-		s       = segment{
-			Name:      "example.com",
-			ID:        "70de5b6f19ff9a0a",
-			TraceID:   "1-581cf771-a006649127e371903a2de979",
-			StartTime: 1.478293361271E9,
-			EndTime:   1.478293361449E9,
-		}
-	)
+	w := bytes.NewBuffer(make([]byte, 0, 2048))
+	encoder := json.NewEncoder(w)
+	s := segment{
+		Name:      "example.com",
+		ID:        "70de5b6f19ff9a0a",
+		TraceID:   "1-581cf771-a006649127e371903a2de979",
+		StartTime: 1.478293361271E9,
+		EndTime:   1.478293361449E9,
+	}
 
 	for i := 0; i < t.N; i++ {
 		w.Reset()
@@ -48,11 +46,9 @@ func BenchmarkSerializeSegment(t *testing.B) {
 
 func TestMakeID(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		var (
-			spanID   = trace.SpanID{0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8}
-			expected = "0102030405060708"
-			id       = MakeAmazonSpanID(spanID)
-		)
+		spanID := trace.SpanID{0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8}
+		expected := "0102030405060708"
+		id := ConvertToAmazonSpanID(spanID)
 
 		if id != expected {
 			t.Errorf("got %v; want %v", id, expected)
@@ -60,11 +56,9 @@ func TestMakeID(t *testing.T) {
 	})
 
 	t.Run("zero", func(t *testing.T) {
-		var (
-			spanID   = trace.SpanID{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}
-			expected = ""
-			id       = MakeAmazonSpanID(spanID)
-		)
+		spanID := trace.SpanID{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}
+		expected := ""
+		id := ConvertToAmazonSpanID(spanID)
 
 		if id != expected {
 			t.Errorf("got %v; want %v", id, expected)
@@ -74,10 +68,8 @@ func TestMakeID(t *testing.T) {
 
 func TestMakeTraceID(t *testing.T) {
 	t.Run("epoch out of range", func(t *testing.T) {
-		var (
-			traceID       = trace.TraceID{0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 0x10}
-			amazonTraceID = MakeAmazonTraceID(traceID)
-		)
+		traceID := trace.TraceID{0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 0x10}
+		amazonTraceID := ConvertToAmazonTraceID(traceID)
 
 		parsedID, err := ParseAmazonTraceID(amazonTraceID)
 		if err != nil {
@@ -102,10 +94,8 @@ func TestMakeTraceID(t *testing.T) {
 }
 
 func TestParseAmazonTraceID(t *testing.T) {
-	var (
-		input    = "1-5759e988-05060708090a0b0c0d0e0f10"
-		expected = trace.TraceID{0x57, 0x59, 0xe9, 0x88, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 0x10}
-	)
+	input := "1-5759e988-05060708090a0b0c0d0e0f10"
+	expected := trace.TraceID{0x57, 0x59, 0xe9, 0x88, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 0x10}
 
 	traceID, err := ParseAmazonTraceID(input)
 	if err != nil {
@@ -123,10 +113,8 @@ func TestParseAmazonTraceID(t *testing.T) {
 }
 
 func TestParseAmazonSpanID(t *testing.T) {
-	var (
-		input    = "53995c3f42cd8ad8"
-		expected = trace.SpanID{0x53, 0x99, 0x5c, 0x3f, 0x42, 0xcd, 0x8a, 0xd8}
-	)
+	input := "53995c3f42cd8ad8"
+	expected := trace.SpanID{0x53, 0x99, 0x5c, 0x3f, 0x42, 0xcd, 0x8a, 0xd8}
 
 	spanID, err := ParseAmazonSpanID(input)
 	if err != nil {
