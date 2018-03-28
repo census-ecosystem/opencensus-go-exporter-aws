@@ -15,9 +15,13 @@
 package aws
 
 import (
+	"encoding/binary"
+	"encoding/hex"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-xray-sdk-go/header"
 	"go.opencensus.io/trace"
@@ -28,7 +32,10 @@ func TestSpanContextFromRequest(t *testing.T) {
 		format  = &HTTPFormat{}
 		traceID = trace.TraceID{0x5a, 0x96, 0x12, 0xa2, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 0x10}
 		spanID  = trace.SpanID{1, 2, 3, 4, 5, 6, 7, 8}
+		epoch   = time.Now().Unix()
 	)
+
+	binary.BigEndian.PutUint32(traceID[0:4], uint32(epoch))
 
 	t.Run("no header", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
@@ -150,7 +157,11 @@ func TestSpanContextToRequest(t *testing.T) {
 		traceID = trace.TraceID{0x5a, 0x96, 0x12, 0xa2, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 0x10}
 		spanID  = trace.SpanID{1, 2, 3, 4, 5, 6, 7, 8}
 		req, _  = http.NewRequest(http.MethodGet, "http://localhost/", nil)
+		epoch   = time.Now().Unix()
 	)
+
+	binary.BigEndian.PutUint32(traceID[0:4], uint32(epoch)) // ensure epoch
+	hexEpoch := hex.EncodeToString(traceID[0:4])
 
 	t.Run("trace on", func(t *testing.T) {
 		var sc = trace.SpanContext{
@@ -160,7 +171,7 @@ func TestSpanContextToRequest(t *testing.T) {
 		}
 		format.SpanContextToRequest(sc, req)
 		v := req.Header.Get(httpHeader)
-		if expected := "Root=1-5a9612a2-05060708090a0b0c0d0e0f10;Parent=0102030405060708;Sampled=1"; expected != v {
+		if expected := fmt.Sprintf("Root=1-%v-05060708090a0b0c0d0e0f10;Parent=0102030405060708;Sampled=1", hexEpoch); expected != v {
 			t.Errorf("got %v; expected %v", expected, v)
 		}
 	})
@@ -173,7 +184,7 @@ func TestSpanContextToRequest(t *testing.T) {
 		}
 		format.SpanContextToRequest(sc, req)
 		v := req.Header.Get(httpHeader)
-		if expected := "Root=1-5a9612a2-05060708090a0b0c0d0e0f10;Parent=0102030405060708;Sampled=0"; expected != v {
+		if expected := fmt.Sprintf("Root=1-%v-05060708090a0b0c0d0e0f10;Parent=0102030405060708;Sampled=0", hexEpoch); expected != v {
 			t.Errorf("got %v; expected %v", expected, v)
 		}
 	})
