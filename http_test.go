@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package aws_test
+package aws
 
 import (
 	"encoding/json"
@@ -24,17 +24,16 @@ import (
 
 	"github.com/aws/aws-sdk-go/service/xray"
 	"github.com/aws/aws-sdk-go/service/xray/xrayiface"
-	"github.com/census-instrumentation/opencensus-go-exporter-aws"
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/trace"
 )
 
-type mockSegments struct {
+type httpTestSegments struct {
 	xrayiface.XRayAPI
 	ch chan string
 }
 
-func (m *mockSegments) PutTraceSegments(in *xray.PutTraceSegmentsInput) (*xray.PutTraceSegmentsOutput, error) {
+func (m *httpTestSegments) PutTraceSegments(in *xray.PutTraceSegmentsInput) (*xray.PutTraceSegmentsOutput, error) {
 	for _, doc := range in.TraceSegmentDocuments {
 		m.ch <- *doc
 	}
@@ -52,20 +51,22 @@ func handle(name string) http.HandlerFunc {
 
 func TestHttp(t *testing.T) {
 	var (
-		api         = &mockSegments{ch: make(chan string, 1)}
-		exporter, _ = aws.NewExporter(aws.WithAPI(api), aws.WithBufferSize(1))
+		api         = &httpTestSegments{ch: make(chan string, 1)}
+		exporter, _ = NewExporter(WithAPI(api), WithBufferSize(1))
 	)
 
 	trace.RegisterExporter(exporter)
-	trace.SetDefaultSampler(trace.AlwaysSample())
+	trace.ApplyConfig(trace.Config{
+		DefaultSampler: trace.AlwaysSample(),
+	})
 
 	var h = &ochttp.Handler{
-		Propagation: &aws.HTTPFormat{},
+		Propagation: &HTTPFormat{},
 		Handler:     handle("web"),
 	}
 
 	traceID := trace.TraceID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
-	amazonTraceID := aws.ConvertToAmazonTraceID(traceID)
+	amazonTraceID := convertToAmazonTraceID(traceID)
 	req, _ := http.NewRequest(http.MethodGet, "http://www.example.com/index", strings.NewReader("hello"))
 
 	w := httptest.NewRecorder()
