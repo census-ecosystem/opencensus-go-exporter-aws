@@ -19,8 +19,8 @@ import (
 )
 
 const (
-	// UrlAttribute allows a custom url to be specified
-	UrlAttribute = "http.url"
+	// URLAttribute allows a custom url to be specified
+	URLAttribute = "http.url"
 )
 
 // httpRequest – Information about an http request.
@@ -93,7 +93,7 @@ func makeHttp(attributes map[string]interface{}) (map[string]interface{}, *httpR
 		case ochttp.StatusCodeAttribute:
 			http.Response.Status, _ = value.(int64)
 
-		case UrlAttribute:
+		case URLAttribute:
 			http.Request.URL, _ = value.(string)
 
 		default:
