@@ -18,6 +18,11 @@ import (
 	"go.opencensus.io/plugin/ochttp"
 )
 
+const (
+	// UrlAttribute allows a custom url to be specified
+	UrlAttribute = "http.url"
+)
+
 // httpRequest – Information about an http request.
 type httpRequest struct {
 	// Method – The request method. For example, GET.
@@ -66,6 +71,7 @@ type httpReqResp struct {
 func makeHttp(attributes map[string]interface{}) (map[string]interface{}, *httpReqResp, string) {
 	var (
 		host     string
+		path     string
 		http     httpReqResp
 		filtered = map[string]interface{}{}
 	)
@@ -74,6 +80,9 @@ func makeHttp(attributes map[string]interface{}) (map[string]interface{}, *httpR
 		switch key {
 		case ochttp.HostAttribute:
 			host, _ = value.(string)
+
+		case ochttp.PathAttribute:
+			path, _ = value.(string)
 
 		case ochttp.MethodAttribute:
 			http.Request.Method, _ = value.(string)
@@ -84,9 +93,16 @@ func makeHttp(attributes map[string]interface{}) (map[string]interface{}, *httpR
 		case ochttp.StatusCodeAttribute:
 			http.Response.Status, _ = value.(int64)
 
+		case UrlAttribute:
+			http.Request.URL, _ = value.(string)
+
 		default:
 			filtered[key] = value
 		}
+	}
+
+	if http.Request.URL == "" {
+		http.Request.URL = host + path
 	}
 
 	if len(filtered) == len(attributes) {

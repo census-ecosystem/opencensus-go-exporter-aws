@@ -50,6 +50,12 @@ func handle(name string) http.HandlerFunc {
 }
 
 func TestHttp(t *testing.T) {
+	const (
+		userAgent = "blah-agent"
+		host      = "www.example.com"
+		path      = "/index"
+	)
+
 	var (
 		api         = &httpTestSegments{ch: make(chan string, 1)}
 		exporter, _ = NewExporter(WithAPI(api), WithBufferSize(1))
@@ -71,16 +77,12 @@ func TestHttp(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	req.Header.Set(`X-Amzn-Trace-Id`, amazonTraceID)
-	req.Header.Set(`User-Agent`, "ua")
+	req.Header.Set(`User-Agent`, userAgent)
 
 	h.ServeHTTP(w, req)
 
 	var content struct {
-		Name        string
-		Annotations struct {
-			Path        string `json:"http.path"`
-			RequestSize int    `json:"http.request_size"`
-		}
+		Name string
 		Http struct {
 			Request struct {
 				Method    string
@@ -91,20 +93,20 @@ func TestHttp(t *testing.T) {
 	}
 
 	v := <-api.ch
-	if err := json.NewDecoder(strings.NewReader(v)).Decode(&content); err != nil {
+	if err := json.Unmarshal([]byte(v), &content); err != nil {
 		t.Fatalf("unable to decode content, %v", err)
 	}
 
-	if expected := "www.example.com"; expected != content.Name {
-		t.Errorf("want %v; got %v", expected, content.Name)
+	if want := host; want != content.Name {
+		t.Errorf("want %v; got %v", want, content.Name)
 	}
-	if expected := "/index"; expected != content.Annotations.Path {
-		t.Errorf("want %v; got %v", expected, content.Annotations.Path)
+	if want := http.MethodGet; want != content.Http.Request.Method {
+		t.Errorf("want %v; got %v", want, content.Http.Request.Method)
 	}
-	if expected := http.MethodGet; expected != content.Http.Request.Method {
-		t.Errorf("want %v; got %v", expected, content.Http.Request.Method)
+	if want := userAgent; want != content.Http.Request.UserAgent {
+		t.Errorf("want %v; got %v", want, content.Http.Request.UserAgent)
 	}
-	if expected := "ua"; expected != content.Http.Request.UserAgent {
-		t.Errorf("want %v; got %v", expected, content.Http.Request.UserAgent)
+	if want := host + path; want != content.Http.Request.URL {
+		t.Errorf("want %v; got %v", want, content.Http.Request.URL)
 	}
 }
