@@ -36,47 +36,48 @@ type HTTPFormat struct{}
 
 var _ propagation.HTTPFormat = (*HTTPFormat)(nil)
 
-func parseHeader(h string) (trace.SpanContext, bool) {
+// ParseTraceHeader parses an Amazon trace header to OpenCensus span context.
+func ParseTraceHeader(header string) (trace.SpanContext, bool) {
 	var (
 		amazonTraceID string
 		parentSpanID  string
 		traceOptions  trace.TraceOptions
 	)
 
-	if strings.HasPrefix(h, prefixRoot) {
-		h = h[len(prefixRoot):]
+	if strings.HasPrefix(header, prefixRoot) {
+		header = header[len(prefixRoot):]
 	}
 
 	// Parse the trace id field.
-	if index := strings.Index(h, `;`); index == -1 {
-		amazonTraceID, h = h, h[len(h):]
+	if index := strings.Index(header, `;`); index == -1 {
+		amazonTraceID, header = header, header[len(header):]
 	} else {
-		amazonTraceID, h = h[:index], h[index+1:]
+		amazonTraceID, header = header[:index], header[index+1:]
 	}
 
-	if strings.HasPrefix(h, prefixParent) {
-		h = h[len(prefixParent):]
+	if strings.HasPrefix(header, prefixParent) {
+		header = header[len(prefixParent):]
 
-		if index := strings.Index(h, `;`); index == -1 {
-			parentSpanID, h = h, h[len(h):]
+		if index := strings.Index(header, `;`); index == -1 {
+			parentSpanID, header = header, header[len(header):]
 		} else {
-			parentSpanID, h = h[:index], h[index+1:]
+			parentSpanID, header = header[:index], header[index+1:]
 		}
 	}
 
-	if strings.HasPrefix(h, prefixSampled) {
-		h = h[len(prefixSampled):]
-		if strings.HasPrefix(h, "1") {
+	if strings.HasPrefix(header, prefixSampled) {
+		header = header[len(prefixSampled):]
+		if strings.HasPrefix(header, "1") {
 			traceOptions = 1
 		}
 	}
 
-	traceID, err := ParseAmazonTraceID(amazonTraceID)
+	traceID, err := parseAmazonTraceID(amazonTraceID)
 	if err != nil {
 		return trace.SpanContext{}, false
 	}
 
-	spanID, err := ParseAmazonSpanID(parentSpanID)
+	spanID, err := parseAmazonSpanID(parentSpanID)
 	if err != nil {
 		return trace.SpanContext{}, false
 	}
@@ -99,31 +100,10 @@ func (f *HTTPFormat) SpanContextFromRequest(req *http.Request) (sc trace.SpanCon
 	if h == "" || len(h) > httpHeaderMaxSize {
 		return trace.SpanContext{}, false
 	}
-
-	return parseHeader(h)
+	return ParseTraceHeader(h)
 }
 
 // SpanContextToRequest modifies the given request to include a AWS X-Ray trace header.
 func (f *HTTPFormat) SpanContextToRequest(sc trace.SpanContext, req *http.Request) {
-	var (
-		header        = make([]byte, 0, 64)
-		amazonTraceID = ConvertToAmazonTraceID(sc.TraceID)
-		amazonSpanID  = ConvertToAmazonSpanID(sc.SpanID)
-	)
-
-	header = append(header, prefixRoot...)
-	header = append(header, amazonTraceID...)
-	header = append(header, ";"...)
-	header = append(header, prefixParent...)
-	header = append(header, amazonSpanID...)
-	header = append(header, ";"...)
-	header = append(header, prefixSampled...)
-
-	if sc.TraceOptions&0x1 == 1 {
-		header = append(header, "1"...)
-	} else {
-		header = append(header, "0"...)
-	}
-
-	req.Header.Set(httpHeader, string(header))
+	req.Header.Set(httpHeader, TraceHeader(sc))
 }

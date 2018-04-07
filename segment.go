@@ -153,7 +153,30 @@ type service struct {
 	Version string `json:"version,omitempty"`
 }
 
-// ConvertToAmazonTraceID converts a trace ID to the Amazon format.
+// TraceHeader converts an OpenCensus span context to AWS X-Ray trace header.
+func TraceHeader(sc trace.SpanContext) string {
+	header := make([]byte, 0, 64)
+	amazonTraceID := convertToAmazonTraceID(sc.TraceID)
+	amazonSpanID := convertToAmazonSpanID(sc.SpanID)
+
+	header = append(header, prefixRoot...)
+	header = append(header, amazonTraceID...)
+	header = append(header, ";"...)
+	header = append(header, prefixParent...)
+	header = append(header, amazonSpanID...)
+	header = append(header, ";"...)
+	header = append(header, prefixSampled...)
+
+	if sc.TraceOptions&0x1 == 1 {
+		header = append(header, "1"...)
+	} else {
+		header = append(header, "0"...)
+	}
+
+	return string(header)
+}
+
+// convertToAmazonTraceID converts a trace ID to the Amazon format.
 //
 // A trace ID unique identifier that connects all segments and subsegments
 // originating from a single client request.
@@ -164,7 +187,7 @@ type service struct {
 //  * For example, 10:00AM December 2nd, 2016 PST in epoch time is 1480615200 seconds,
 //    or 58406520 in hexadecimal.
 //  * A 96-bit identifier for the trace, globally unique, in 24 hexadecimal digits.
-func ConvertToAmazonTraceID(traceID trace.TraceID) string {
+func convertToAmazonTraceID(traceID trace.TraceID) string {
 	const (
 		// maxAge of 28 days.  AWS has a 30 day limit, let's be conservative rather than
 		// hit the limit
@@ -202,8 +225,8 @@ func ConvertToAmazonTraceID(traceID trace.TraceID) string {
 	return string(content[0:traceIDLength])
 }
 
-// ParseAmazonTraceID parses an amazon traceID string in the format 1-5759e988-bd862e3fe1be46a994272793
-func ParseAmazonTraceID(t string) (trace.TraceID, error) {
+// parseAmazonTraceID parses an amazon traceID string in the format 1-5759e988-bd862e3fe1be46a994272793
+func parseAmazonTraceID(t string) (trace.TraceID, error) {
 	if v := len(t); v != traceIDLength {
 		return trace.TraceID{}, fmt.Errorf("invalid amazon trace id; got length %v, want %v", v, traceIDLength)
 	}
@@ -227,17 +250,17 @@ func ParseAmazonTraceID(t string) (trace.TraceID, error) {
 	return traceID, nil
 }
 
-// ConvertToAmazonSpanID generates an Amazon spanID from a trace.SpanID - a 64-bit identifier
+// convertToAmazonSpanID generates an Amazon spanID from a trace.SpanID - a 64-bit identifier
 // for the segment, unique among segments in the same trace, in 16 hexadecimal digits.
-func ConvertToAmazonSpanID(v trace.SpanID) string {
+func convertToAmazonSpanID(v trace.SpanID) string {
 	if v == zeroSpanID {
 		return ""
 	}
 	return hex.EncodeToString(v[0:8])
 }
 
-// ParseAmazonSpanID parses an amazon spanID
-func ParseAmazonSpanID(v string) (trace.SpanID, error) {
+// parseAmazonSpanID parses an amazon spanID
+func parseAmazonSpanID(v string) (trace.SpanID, error) {
 	if v == "" {
 		return zeroSpanID, nil
 	}
@@ -345,7 +368,7 @@ func fixSegmentName(name string) string {
 
 func rawSegment(span *trace.SpanData) segment {
 	var (
-		traceID                 = ConvertToAmazonTraceID(span.TraceID)
+		traceID                 = convertToAmazonTraceID(span.TraceID)
 		startMicros             = span.StartTime.UnixNano() / int64(time.Microsecond)
 		startTime               = float64(startMicros) / 1e6
 		endMicros               = span.EndTime.UnixNano() / int64(time.Microsecond)
@@ -365,13 +388,13 @@ func rawSegment(span *trace.SpanData) segment {
 	}
 
 	return segment{
-		ID:          ConvertToAmazonSpanID(span.SpanID),
+		ID:          convertToAmazonSpanID(span.SpanID),
 		TraceID:     traceID,
 		Name:        name,
 		StartTime:   startTime,
 		EndTime:     endTime,
 		Namespace:   namespace,
-		ParentID:    ConvertToAmazonSpanID(span.ParentSpanID),
+		ParentID:    convertToAmazonSpanID(span.ParentSpanID),
 		Annotations: annotations,
 		Http:        http,
 		Error:       isError,
