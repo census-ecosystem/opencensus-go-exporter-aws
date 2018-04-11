@@ -254,13 +254,9 @@ func TestExporter(t *testing.T) {
 }
 
 func TestOptions(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping test in short mode")
-	}
-
-	t.Run("SetOutput", func(t *testing.T) {
+	t.Run("WithOutput", func(t *testing.T) {
 		var output = os.Stderr
-		config, err := buildConfig(WithOutput(output))
+		config, err := buildConfig(WithOutput(output), WithRegion("blah"))
 		if err != nil {
 			t.Fatalf("want nil; got %v", err)
 		}
@@ -269,9 +265,9 @@ func TestOptions(t *testing.T) {
 		}
 	})
 
-	t.Run("SetInterval", func(t *testing.T) {
+	t.Run("WithInterval", func(t *testing.T) {
 		const interval = time.Minute
-		config, err := buildConfig(WithInterval(interval))
+		config, err := buildConfig(WithInterval(interval), WithRegion("blah"))
 		if err != nil {
 			t.Fatalf("want nil; got %v", err)
 		}
@@ -280,9 +276,9 @@ func TestOptions(t *testing.T) {
 		}
 	})
 
-	t.Run("SetBufferSize", func(t *testing.T) {
+	t.Run("WithBufferSize", func(t *testing.T) {
 		const bufferSize = 15
-		config, err := buildConfig(WithBufferSize(bufferSize))
+		config, err := buildConfig(WithBufferSize(bufferSize), WithRegion("blah"))
 		if err != nil {
 			t.Fatalf("want nil; got %v", err)
 		}
@@ -291,9 +287,9 @@ func TestOptions(t *testing.T) {
 		}
 	})
 
-	t.Run("SetVersion", func(t *testing.T) {
+	t.Run("WithVersion", func(t *testing.T) {
 		const version = "latest"
-		config, err := buildConfig(WithVersion(version))
+		config, err := buildConfig(WithVersion(version), WithRegion("blah"))
 		if err != nil {
 			t.Fatalf("want nil; got %v", err)
 		}
@@ -306,9 +302,9 @@ func TestOptions(t *testing.T) {
 		}
 	})
 
-	t.Run("SetOrigin", func(t *testing.T) {
+	t.Run("WithOrigin", func(t *testing.T) {
 		const origin = OriginEB
-		config, err := buildConfig(WithOrigin(origin))
+		config, err := buildConfig(WithOrigin(origin), WithRegion("blah"))
 		if err != nil {
 			t.Fatalf("want nil; got %v", err)
 		}
