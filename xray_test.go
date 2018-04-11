@@ -65,7 +65,9 @@ func TestLiveExporter(t *testing.T) {
 	}
 
 	trace.RegisterExporter(exporter)
-	trace.SetDefaultSampler(trace.AlwaysSample())
+	trace.ApplyConfig(trace.Config{
+		DefaultSampler: trace.AlwaysSample(),
+	})
 
 	attributes := []trace.Attribute{
 		trace.StringAttribute("key", "value"),
@@ -118,7 +120,9 @@ func TestLiveLargeNumberOfSpans(t *testing.T) {
 	}
 
 	trace.RegisterExporter(exporter)
-	trace.SetDefaultSampler(trace.AlwaysSample())
+	trace.ApplyConfig(trace.Config{
+		DefaultSampler: trace.AlwaysSample(),
+	})
 
 	makeSpan(context.Background(), 100) // deep span
 	makeSpan(context.Background(), 1)   // shallow span to force new call to onExport
@@ -128,18 +132,18 @@ func TestLiveLargeNumberOfSpans(t *testing.T) {
 	<-published
 }
 
-type mockSegments struct {
+type testSegments struct {
 	xrayiface.XRayAPI
 	ch chan segment
 }
 
-func (m *mockSegments) PutTraceSegments(in *xray.PutTraceSegmentsInput) (*xray.PutTraceSegmentsOutput, error) {
+func (t *testSegments) PutTraceSegments(in *xray.PutTraceSegmentsInput) (*xray.PutTraceSegmentsOutput, error) {
 	for _, doc := range in.TraceSegmentDocuments {
 		var s segment
 		if err := json.Unmarshal([]byte(*doc), &s); err != nil {
 			return nil, err
 		}
-		m.ch <- s
+		t.ch <- s
 	}
 	return nil, nil
 }
@@ -212,7 +216,7 @@ func TestExporter(t *testing.T) {
 
 			// Given
 			var (
-				api     = &mockSegments{ch: make(chan segment, 16)}
+				api     = &testSegments{ch: make(chan segment, 16)}
 				content struct {
 					Input    spec
 					Expected []segment
@@ -228,7 +232,9 @@ func TestExporter(t *testing.T) {
 				t.Fatalf("expected to create exporter; got %v", err)
 			}
 			trace.RegisterExporter(exporter)
-			trace.SetDefaultSampler(trace.AlwaysSample())
+			trace.ApplyConfig(trace.Config{
+				DefaultSampler: trace.AlwaysSample(),
+			})
 
 			// When - we create a span structure
 			walk(context.Background(), content.Input)
@@ -313,7 +319,7 @@ func TestOptions(t *testing.T) {
 			version  = "blah"
 			origin   = OriginEB
 			exported = make(chan struct{})
-			api      = &mockSegments{ch: make(chan segment, 1)}
+			api      = &testSegments{ch: make(chan segment, 1)}
 			onExport = func(export OnExport) {
 				select {
 				case <-exported:
@@ -333,7 +339,9 @@ func TestOptions(t *testing.T) {
 		buildConfig()
 
 		trace.RegisterExporter(exporter)
-		trace.SetDefaultSampler(trace.AlwaysSample())
+		trace.ApplyConfig(trace.Config{
+			DefaultSampler: trace.AlwaysSample(),
+		})
 
 		// When
 		_, span := trace.StartSpan(context.Background(), "span")
@@ -364,12 +372,14 @@ func TestOptions(t *testing.T) {
 
 func TestSetBufferSizeTrigger(t *testing.T) {
 	var (
-		api         = &mockSegments{ch: make(chan segment, 1)}
+		api         = &testSegments{ch: make(chan segment, 1)}
 		exporter, _ = NewExporter(WithAPI(api), WithBufferSize(1))
 	)
 
 	trace.RegisterExporter(exporter)
-	trace.SetDefaultSampler(trace.AlwaysSample())
+	trace.ApplyConfig(trace.Config{
+		DefaultSampler: trace.AlwaysSample(),
+	})
 
 	// When
 	_, span := trace.StartSpan(context.Background(), "span")
@@ -385,12 +395,14 @@ func TestSetBufferSizeTrigger(t *testing.T) {
 
 func TestFlush(t *testing.T) {
 	var (
-		api         = &mockSegments{ch: make(chan segment, 1)}
+		api         = &testSegments{ch: make(chan segment, 1)}
 		exporter, _ = NewExporter(WithAPI(api))
 	)
 
 	trace.RegisterExporter(exporter)
-	trace.SetDefaultSampler(trace.AlwaysSample())
+	trace.ApplyConfig(trace.Config{
+		DefaultSampler: trace.AlwaysSample(),
+	})
 
 	_, span := trace.StartSpan(context.Background(), "span")
 	span.End()
@@ -409,12 +421,14 @@ func TestFlush(t *testing.T) {
 func TestClose(t *testing.T) {
 	t.Run("flushes buffer", func(t *testing.T) {
 		var (
-			api         = &mockSegments{ch: make(chan segment, 1)}
+			api         = &testSegments{ch: make(chan segment, 1)}
 			exporter, _ = NewExporter(WithAPI(api))
 		)
 
 		trace.RegisterExporter(exporter)
-		trace.SetDefaultSampler(trace.AlwaysSample())
+		trace.ApplyConfig(trace.Config{
+			DefaultSampler: trace.AlwaysSample(),
+		})
 
 		_, span := trace.StartSpan(context.Background(), "span")
 		span.End()
@@ -432,12 +446,14 @@ func TestClose(t *testing.T) {
 
 	t.Run("additional messages dropped after exporter is Closed", func(t *testing.T) {
 		var (
-			api         = &mockSegments{ch: make(chan segment, 1)}
+			api         = &testSegments{ch: make(chan segment, 1)}
 			exporter, _ = NewExporter(WithAPI(api))
 		)
 
 		trace.RegisterExporter(exporter)
-		trace.SetDefaultSampler(trace.AlwaysSample())
+		trace.ApplyConfig(trace.Config{
+			DefaultSampler: trace.AlwaysSample(),
+		})
 
 		// When
 		exporter.Close()
