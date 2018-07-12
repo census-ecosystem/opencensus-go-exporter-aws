@@ -23,6 +23,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"reflect"
+	"regexp"
 	"testing"
 	"time"
 
@@ -314,13 +315,28 @@ func TestOptions(t *testing.T) {
 		}
 	})
 
+	t.Run("WithBlacklist", func(t *testing.T) {
+		blacklist := []*regexp.Regexp{regexp.MustCompile("blah")}
+		config, err := buildConfig(WithBlacklist(blacklist), WithRegion("blah"))
+		if err != nil {
+			t.Fatalf("want nil; got %v", err)
+		}
+
+		for i, blacklistEntry := range blacklist {
+			if config.blacklist[i] != blacklistEntry {
+				t.Fatalf("want %v; got %v", blacklistEntry, config.blacklist[i])
+			}
+		}
+	})
+
 	t.Run("end to end", func(t *testing.T) {
 		var (
-			version  = "blah"
-			origin   = OriginEB
-			exported = make(chan struct{})
-			api      = &testSegments{ch: make(chan segment, 1)}
-			onExport = func(export OnExport) {
+			version   = "blah"
+			origin    = OriginEB
+			exported  = make(chan struct{})
+			api       = &testSegments{ch: make(chan segment, 1)}
+			blacklist = []*regexp.Regexp{regexp.MustCompile("nospan")}
+			onExport  = func(export OnExport) {
 				select {
 				case <-exported:
 				default:
@@ -333,6 +349,7 @@ func TestOptions(t *testing.T) {
 				WithVersion(version),
 				WithOnExport(onExport),
 				WithInterval(100*time.Millisecond),
+				WithBlacklist(blacklist),
 			)
 		)
 
@@ -346,7 +363,10 @@ func TestOptions(t *testing.T) {
 		// When
 		_, span := trace.StartSpan(context.Background(), "span")
 		span.End()
+		_, span = trace.StartSpan(context.Background(), "nospan")
+		span.End()
 
+		numSpansExported := 0
 		// Then
 		select {
 		case segment := <-api.ch:
@@ -360,12 +380,16 @@ func TestOptions(t *testing.T) {
 			select {
 			case <-exported:
 				//ok
+				numSpansExported = numSpansExported + 1
 			case <-time.After(time.Second):
 				t.Errorf("timeout waiting for onExport to be called")
 			}
 
 		case <-time.After(time.Second):
 			t.Errorf("timeout waiting for span to be processed")
+		}
+		if numSpansExported != 1 {
+			t.Errorf("expected 1 span expected; got %v", numSpansExported)
 		}
 	})
 }
