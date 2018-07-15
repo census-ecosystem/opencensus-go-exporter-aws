@@ -321,8 +321,8 @@ func (e *Exporter) publish(spans []*trace.SpanData) {
 		_, err := e.api.PutTraceSegments(&input)
 		if err == nil {
 			if e.onExport != nil {
+				e.wg.Add(len(traceIDs))
 				for _, traceID := range traceIDs {
-					e.wg.Add(1)
 					go func() {
 						defer e.wg.Done()
 						e.onExport(OnExport{TraceID: traceID})
