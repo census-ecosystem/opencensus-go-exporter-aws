@@ -56,6 +56,7 @@ type config struct {
 	service    *service              // contains embedded version info
 	interval   time.Duration         // interval spans are published to aws
 	bufferSize int                   // bufSize represents max number of spans before forcing publish
+	blacklist  []*regexp.Regexp
 }
 
 type Option interface {
@@ -128,6 +129,13 @@ func WithBufferSize(bufferSize int) Option {
 	})
 }
 
+// WithBlacklist filters out the spans those names match one of the given regexps.
+func WithBlacklist(blacklist []*regexp.Regexp) Option {
+	return optionFunc(func(c *config) {
+		c.blacklist = blacklist
+	})
+}
+
 // Exporter is an implementation of trace.Exporter that uploads spans to AWS XRay
 type Exporter struct {
 	api      xrayiface.XRayAPI
@@ -141,10 +149,11 @@ type Exporter struct {
 	cancel context.CancelFunc // cancels the child goroutine; idempotent
 	done   chan struct{}      // done returns immediately once the child goroutine has finished
 
-	mutex  sync.Mutex        // mutex protects offset, buffer, and closed
-	offset int               // offset holds position of next SpanData within queue
-	buffer []*trace.SpanData // buffer of spans not yet published
-	closed bool              // indicates Exporter is closed.  any additional spans will be dropped
+	mutex     sync.Mutex        // mutex protects offset, buffer, and closed
+	offset    int               // offset holds position of next SpanData within queue
+	buffer    []*trace.SpanData // buffer of spans not yet published
+	closed    bool              // indicates Exporter is closed.  any additional spans will be dropped
+	blacklist []*regexp.Regexp
 }
 
 var (
@@ -277,12 +286,22 @@ func NewExporter(opts ...Option) (*Exporter, error) {
 		cancel: cancel,
 		done:   done,
 
-		buffer: buffer,
-		origin: string(c.origin),
+		buffer:    buffer,
+		origin:    string(c.origin),
+		blacklist: c.blacklist,
 	}
 	go exporter.publishAtInterval(c.interval)
 
 	return exporter, nil
+}
+
+func (e *Exporter) isBlacklisted(span *trace.SpanData) bool {
+	for _, blacklistEntry := range e.blacklist {
+		if blacklistEntry.MatchString(span.Name) {
+			return true
+		}
+	}
+	return false
 }
 
 func (e *Exporter) makeInput(spans []*trace.SpanData) (xray.PutTraceSegmentsInput, []string) {
@@ -294,8 +313,10 @@ func (e *Exporter) makeInput(spans []*trace.SpanData) (xray.PutTraceSegmentsInpu
 	defer release(w)
 
 	for _, span := range spans {
+		if e.isBlacklisted(span) {
+			continue
+		}
 		var segment = e.makeSegment(span)
-
 		if segment.ParentID == "" {
 			traceIDs = append(traceIDs, segment.TraceID)
 		}
