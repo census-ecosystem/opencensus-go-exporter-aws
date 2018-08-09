@@ -54,6 +54,9 @@ var (
 	// reInvalidSpanCharacters defines the invalid letters in a span name as per
 	// https://docs.aws.amazon.com/xray/latest/devguide/xray-api-segmentdocuments.html
 	reInvalidSpanCharacters = regexp.MustCompile(`[^ 0-9\p{L}N_.:/%&#=+,\-@]`)
+	// reInvalidAnnotationCharacters defines the invalid letters in an annotation key as per
+	// https://docs.aws.amazon.com/xray/latest/devguide/xray-api-segmentdocuments.html
+	reInvalidAnnotationCharacters = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 )
 
 const (
@@ -280,9 +283,10 @@ func parseAmazonSpanID(v string) (trace.SpanID, error) {
 	return spanID, nil
 }
 
-// merge all string, bool, and numeric values from src to dest
-func merge(dest, src map[string]interface{}) {
+// mergeAnnotations all string, bool, and numeric values from src to dest, fixing keys as needed
+func mergeAnnotations(dest, src map[string]interface{}) {
 	for key, value := range src {
+		key = fixAnnotationKey(key)
 		switch value.(type) {
 		case bool:
 			dest[key] = value
@@ -302,9 +306,9 @@ func makeAnnotations(annotations []trace.Annotation, attributes map[string]inter
 	var result = map[string]interface{}{}
 
 	for _, annotation := range annotations {
-		merge(result, annotation.Attributes)
+		mergeAnnotations(result, annotation.Attributes)
 	}
-	merge(result, attributes)
+	mergeAnnotations(result, attributes)
 
 	if len(result) == 0 {
 		return nil
@@ -364,6 +368,18 @@ func fixSegmentName(name string) string {
 	}
 
 	return name
+}
+
+// fixAnnotationKey removes any invalid characters from the annotaiton key.  AWS X-Ray defines
+// the list of valid characters here:
+// https://docs.aws.amazon.com/xray/latest/devguide/xray-api-segmentdocuments.html
+func fixAnnotationKey(key string) string {
+	if reInvalidAnnotationCharacters.MatchString(key) {
+		// only allocate for ReplaceAllString if we need to
+		key = reInvalidAnnotationCharacters.ReplaceAllString(key, "_")
+	}
+
+	return key
 }
 
 func rawSegment(span *trace.SpanData) segment {
