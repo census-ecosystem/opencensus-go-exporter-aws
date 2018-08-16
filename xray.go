@@ -342,6 +342,9 @@ func (e *Exporter) publish(spans []*trace.SpanData) {
 	var (
 		input, traceIDs = e.makeInput(spans)
 	)
+	if len(input.TraceSegmentDocuments) == 0 {
+		return
+	}
 
 	for attempt := 0; attempt < 3; attempt++ {
 		_, err := e.api.PutTraceSegments(&input)
