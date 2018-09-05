@@ -132,7 +132,7 @@ type segment struct {
 	Service *service `json:"service,omitempty"`
 
 	// Http - optional xray specific http settings
-	Http *httpReqResp `json:"http,omitempty"`
+	Http *httpInfo `json:"http,omitempty"`
 
 	// Error - boolean indicating that a client error occurred
 	// (response status code was 4XX Client Error).
@@ -389,7 +389,7 @@ func rawSegment(span *trace.SpanData) segment {
 		startTime               = float64(startMicros) / 1e6
 		endMicros               = span.EndTime.UnixNano() / int64(time.Microsecond)
 		endTime                 = float64(endMicros) / 1e6
-		filtered, http          = makeHttp(span.Name, span.Attributes)
+		filtered, http          = makeHttp(span.Name, span.Code, span.Attributes)
 		isError, isFault, cause = makeCause(span.Status)
 		annotations             = makeAnnotations(span.Annotations, filtered)
 		name                    = fixSegmentName(span.Name)

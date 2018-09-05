@@ -15,7 +15,10 @@
 package aws
 
 import (
+	"net/http"
+
 	"go.opencensus.io/plugin/ochttp"
+	"go.opencensus.io/trace"
 )
 
 // httpRequest – Information about an http request.
@@ -58,38 +61,88 @@ type httpResponse struct {
 	ContentLength int64 `json:"content_length,omitempty"`
 }
 
-type httpReqResp struct {
+type httpInfo struct {
 	Request  httpRequest  `json:"request"`
 	Response httpResponse `json:"response"`
 }
 
-func makeHttp(spanName string, attributes map[string]interface{}) (map[string]interface{}, *httpReqResp) {
+func convertToStatusCode(code int32) int64 {
+	// https://github.com/googleapis/googleapis/blob/master/google/rpc/code.proto
+	// Status codes for use with Span.SetStatus. These correspond to the status
+	// codes used by gRPC defined here: https://github.com/googleapis/googleapis/blob/master/google/rpc/code.proto
+	switch code {
+	case trace.StatusCodeOK:
+		return http.StatusOK
+	case trace.StatusCodeCancelled:
+		return 499 // Client Closed Request
+	case trace.StatusCodeUnknown:
+		return http.StatusInternalServerError
+	case trace.StatusCodeInvalidArgument:
+		return http.StatusBadRequest
+	case trace.StatusCodeDeadlineExceeded:
+		return http.StatusGatewayTimeout
+	case trace.StatusCodeNotFound:
+		return http.StatusNotFound
+	case trace.StatusCodeAlreadyExists:
+		return http.StatusConflict
+	case trace.StatusCodePermissionDenied:
+		return http.StatusForbidden
+	case trace.StatusCodeResourceExhausted:
+		return http.StatusTooManyRequests
+	case trace.StatusCodeFailedPrecondition:
+		return http.StatusBadRequest
+	case trace.StatusCodeAborted:
+		return http.StatusConflict
+	case trace.StatusCodeOutOfRange:
+		return http.StatusBadRequest
+	case trace.StatusCodeUnimplemented:
+		return http.StatusNotImplemented
+	case trace.StatusCodeInternal:
+		return http.StatusInternalServerError
+	case trace.StatusCodeUnavailable:
+		return http.StatusServiceUnavailable
+	case trace.StatusCodeDataLoss:
+		return http.StatusInternalServerError
+	case trace.StatusCodeUnauthenticated:
+		return http.StatusUnauthorized
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
+func makeHttp(spanName string, code int32, attributes map[string]interface{}) (map[string]interface{}, *httpInfo) {
 	var (
-		http     httpReqResp
+		info     httpInfo
 		filtered = map[string]interface{}{}
 	)
 
 	for key, value := range attributes {
 		switch key {
 		case ochttp.MethodAttribute:
-			http.Request.Method, _ = value.(string)
+			info.Request.Method, _ = value.(string)
 
 		case ochttp.UserAgentAttribute:
-			http.Request.UserAgent, _ = value.(string)
+			info.Request.UserAgent, _ = value.(string)
 
 		case ochttp.StatusCodeAttribute:
-			http.Response.Status, _ = value.(int64)
+			info.Response.Status, _ = value.(int64)
 
 		default:
 			filtered[key] = value
 		}
 	}
 
-	http.Request.URL = spanName
+	info.Request.URL = spanName
+
+	if info.Response.Status == 0 {
+		// this is a fallback because the ochttp.StatusCodeAttribute isn't being set by opencensus-go
+		// https://github.com/census-instrumentation/opencensus-go/issues/899
+		info.Response.Status = convertToStatusCode(code)
+	}
 
 	if len(filtered) == len(attributes) {
 		return attributes, nil
 	}
 
-	return filtered, &http
+	return filtered, &info
 }
