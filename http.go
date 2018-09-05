@@ -63,18 +63,14 @@ type httpReqResp struct {
 	Response httpResponse `json:"response"`
 }
 
-func makeHttp(attributes map[string]interface{}) (map[string]interface{}, *httpReqResp, string) {
+func makeHttp(spanName string, attributes map[string]interface{}) (map[string]interface{}, *httpReqResp) {
 	var (
-		host     string
 		http     httpReqResp
 		filtered = map[string]interface{}{}
 	)
 
 	for key, value := range attributes {
 		switch key {
-		case ochttp.HostAttribute:
-			host, _ = value.(string)
-
 		case ochttp.MethodAttribute:
 			http.Request.Method, _ = value.(string)
 
@@ -89,9 +85,11 @@ func makeHttp(attributes map[string]interface{}) (map[string]interface{}, *httpR
 		}
 	}
 
+	http.Request.URL = spanName
+
 	if len(filtered) == len(attributes) {
-		return attributes, nil, ""
+		return attributes, nil
 	}
 
-	return filtered, &http, host
+	return filtered, &http
 }
