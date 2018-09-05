@@ -97,16 +97,16 @@ func TestHttp(t *testing.T) {
 		t.Fatalf("unable to decode content, %v", err)
 	}
 
-	if want := host; want != content.Name {
-		t.Errorf("want %v; got %v", want, content.Name)
+	if got, want := content.Name, host; got != want {
+		t.Errorf("got %v; want %v", got, want)
 	}
-	if want := http.MethodGet; want != content.Http.Request.Method {
-		t.Errorf("want %v; got %v", want, content.Http.Request.Method)
+	if got, want := content.Http.Request.Method, http.MethodGet; got != want {
+		t.Errorf("got %v; want %v", got, want)
 	}
-	if want := userAgent; want != content.Http.Request.UserAgent {
-		t.Errorf("want %v; got %v", want, content.Http.Request.UserAgent)
+	if got, want := content.Http.Request.UserAgent, userAgent; got != want {
+		t.Errorf("got %v; want %v", got, want)
 	}
-	if want := host + path; want != content.Http.Request.URL {
-		t.Errorf("want %v; got %v", want, content.Http.Request.URL)
+	if got, want := content.Http.Request.URL, host+path; got != want {
+		t.Errorf("got %v; want %v", got, want)
 	}
 }

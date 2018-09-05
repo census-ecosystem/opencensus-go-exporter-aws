@@ -18,10 +18,8 @@ import (
 	"go.opencensus.io/plugin/ochttp"
 )
 
-const (
-	// URLAttribute allows a custom url to be specified
-	URLAttribute = "http.url"
-)
+// URLAttribute allows a custom url to be specified
+const URLAttribute = "http.url"
 
 // httpRequest – Information about an http request.
 type httpRequest struct {
