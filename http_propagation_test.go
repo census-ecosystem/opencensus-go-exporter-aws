@@ -23,7 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-xray-sdk-go/header"
 	"go.opencensus.io/trace"
 )
 
@@ -68,7 +67,7 @@ func TestSpanContextFromRequest(t *testing.T) {
 	t.Run("traceID only with root prefix", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
 		amazonTraceID := convertToAmazonTraceID(traceID)
-		req.Header.Set(httpHeader, header.RootPrefix+amazonTraceID)
+		req.Header.Set(httpHeader, prefixRoot+amazonTraceID)
 
 		sc, ok := format.SpanContextFromRequest(req)
 		if !ok {

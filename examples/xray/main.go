@@ -22,7 +22,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/census-instrumentation/opencensus-go-exporter-aws"
+	"contrib.go.opencensus.io/exporter/aws"
 	"go.opencensus.io/trace"
 )
 
