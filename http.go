@@ -135,6 +135,8 @@ func makeHttp(spanName string, code int32, attributes map[string]interface{}) (m
 	info.Request.URL = spanName
 
 	if info.Response.Status == 0 {
+		// this is a fallback because the ochttp.StatusCodeAttribute isn't being set by opencensus-go
+		// https://github.com/census-instrumentation/opencensus-go/issues/899
 		info.Response.Status = convertToStatusCode(code)
 	}
 
