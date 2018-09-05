@@ -97,7 +97,7 @@ func TestHttp(t *testing.T) {
 		t.Fatalf("unable to decode content, %v", err)
 	}
 
-	if got, want := content.Name, host; got != want {
+	if got, want := content.Name, path; got != want {
 		t.Errorf("got %v; want %v", got, want)
 	}
 	if got, want := content.Http.Request.Method, http.MethodGet; got != want {
@@ -106,7 +106,7 @@ func TestHttp(t *testing.T) {
 	if got, want := content.Http.Request.UserAgent, userAgent; got != want {
 		t.Errorf("got %v; want %v", got, want)
 	}
-	if got, want := content.Http.Request.URL, host+path; got != want {
+	if got, want := content.Http.Request.URL, path; got != want {
 		t.Errorf("got %v; want %v", got, want)
 	}
 }

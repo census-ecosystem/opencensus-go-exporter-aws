@@ -373,16 +373,13 @@ func rawSegment(span *trace.SpanData) segment {
 		startTime               = float64(startMicros) / 1e6
 		endMicros               = span.EndTime.UnixNano() / int64(time.Microsecond)
 		endTime                 = float64(endMicros) / 1e6
-		filtered, http, host    = makeHttp(span.Attributes)
+		filtered, http          = makeHttp(span.Name, span.Attributes)
 		isError, isFault, cause = makeCause(span.Status)
 		annotations             = makeAnnotations(span.Annotations, filtered)
 		name                    = fixSegmentName(span.Name)
 		namespace               string
 	)
 
-	if host != "" {
-		name = host
-	}
 	if span.HasRemoteParent {
 		namespace = "remote"
 	}
