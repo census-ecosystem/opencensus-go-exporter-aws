@@ -40,11 +40,11 @@ func (m *httpTestSegments) PutTraceSegments(in *xray.PutTraceSegmentsInput) (*xr
 	return nil, nil
 }
 
-func handle(name string) http.HandlerFunc {
+func handle(statusCode int) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.Header().Set("Content-Length", "2")
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(statusCode)
 		io.WriteString(w, "ok")
 	}
 }
@@ -52,7 +52,6 @@ func handle(name string) http.HandlerFunc {
 func TestHttp(t *testing.T) {
 	const (
 		userAgent = "blah-agent"
-		host      = "www.example.com"
 		path      = "/index"
 	)
 
@@ -68,7 +67,7 @@ func TestHttp(t *testing.T) {
 
 	var h = &ochttp.Handler{
 		Propagation: &HTTPFormat{},
-		Handler:     handle("web"),
+		Handler:     handle(http.StatusNotFound),
 	}
 
 	traceID := trace.TraceID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
@@ -76,7 +75,7 @@ func TestHttp(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodGet, "http://www.example.com/index", strings.NewReader("hello"))
 
 	w := httptest.NewRecorder()
-	req.Header.Set(`X-Amzn-Trace-Id`, amazonTraceID)
+	req.Header.Set(httpHeader, amazonTraceID)
 	req.Header.Set(`User-Agent`, userAgent)
 
 	h.ServeHTTP(w, req)
@@ -88,6 +87,9 @@ func TestHttp(t *testing.T) {
 				Method    string
 				URL       string `json:"url"`
 				UserAgent string `json:"user_agent"`
+			}
+			Response struct {
+				Status int
 			}
 		}
 	}
@@ -107,6 +109,9 @@ func TestHttp(t *testing.T) {
 		t.Errorf("got %v; want %v", got, want)
 	}
 	if got, want := content.Http.Request.URL, path; got != want {
+		t.Errorf("got %v; want %v", got, want)
+	}
+	if got, want := content.Http.Response.Status, http.StatusNotFound; got != want {
 		t.Errorf("got %v; want %v", got, want)
 	}
 }
