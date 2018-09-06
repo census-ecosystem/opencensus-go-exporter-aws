@@ -1,7 +1,6 @@
 aws
 ---
-
-[![GoDoc][godoc-image]][godoc-url]
+[![Build Status][travis-image]][travis-url] [![GoDoc][godoc-image]][godoc-url]
 
 `aws` package defines an exporter that publishes spans to `AWS X-Ray`.
 
@@ -22,3 +21,5 @@ go get contrib.go.opencensus.io/exporter/aws
 
 [godoc-image]: https://godoc.org/contrib.go.opencensus.io/exporter/aws?status.svg
 [godoc-url]: https://godoc.org/contrib.go.opencensus.io/exporter/aws
+[travis-image]: https://travis-ci.org/census-ecosystem/opencensus-go-exporter-aws.svg?branch=master
+[travis-url]: https://travis-ci.org/census-ecosystem/opencensus-go-exporter-aws
