@@ -288,6 +288,18 @@ func TestOptions(t *testing.T) {
 		}
 	})
 
+	t.Run("WithServiceName", func(t *testing.T) {
+		name := "test"
+		config, err := buildConfig(WithServiceName(name), WithRegion("blah"))
+		if err != nil {
+			t.Fatalf("want nil, got %v", err)
+		}
+
+		if name != config.name {
+			t.Fatalf("want %v, got %v", name, config.name)
+		}
+	})
+
 	t.Run("WithVersion", func(t *testing.T) {
 		const version = "latest"
 		config, err := buildConfig(WithVersion(version), WithRegion("blah"))
@@ -333,6 +345,7 @@ func TestOptions(t *testing.T) {
 		var (
 			version   = "blah"
 			origin    = OriginEB
+			name      = "test"
 			exported  = make(chan struct{})
 			api       = &testSegments{ch: make(chan segment, 1)}
 			blacklist = []*regexp.Regexp{regexp.MustCompile("nospan")}
@@ -346,6 +359,7 @@ func TestOptions(t *testing.T) {
 			exporter, _ = NewExporter(
 				WithAPI(api),
 				WithOrigin(origin),
+				WithServiceName(name),
 				WithVersion(version),
 				WithOnExport(onExport),
 				WithInterval(100*time.Millisecond),
@@ -370,6 +384,9 @@ func TestOptions(t *testing.T) {
 		// Then
 		select {
 		case segment := <-api.ch:
+			if name != segment.Name {
+				t.Errorf("expected %v; got %v", name, segment.Name)
+			}
 			if segment.Service == nil || segment.Service.Version != version {
 				t.Errorf("expected %v; got %#v", version, segment.Service)
 			}
