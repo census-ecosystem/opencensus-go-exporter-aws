@@ -382,7 +382,7 @@ func fixAnnotationKey(key string) string {
 	return key
 }
 
-func rawSegment(span *trace.SpanData) segment {
+func rawSegment(name string, span *trace.SpanData) segment {
 	var (
 		traceID                 = convertToAmazonTraceID(span.TraceID)
 		startMicros             = span.StartTime.UnixNano() / int64(time.Microsecond)
@@ -392,10 +392,12 @@ func rawSegment(span *trace.SpanData) segment {
 		filtered, http          = makeHttp(span.Name, span.Code, span.Attributes)
 		isError, isFault, cause = makeCause(span.Status)
 		annotations             = makeAnnotations(span.Annotations, filtered)
-		name                    = fixSegmentName(span.Name)
 		namespace               string
 	)
 
+	if name == "" {
+		name = fixSegmentName(span.Name)
+	}
 	if span.HasRemoteParent {
 		namespace = "remote"
 	}

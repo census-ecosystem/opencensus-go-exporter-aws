@@ -53,6 +53,7 @@ type config struct {
 	api        xrayiface.XRayAPI     // use specific api instance
 	onExport   func(export OnExport) // callback on publish
 	origin     origin                // origin of span
+	name       string                // service name for segment publication
 	service    *service              // contains embedded version info
 	interval   time.Duration         // interval spans are published to aws
 	bufferSize int                   // bufSize represents max number of spans before forcing publish
@@ -67,6 +68,13 @@ type optionFunc func(c *config)
 
 func (fn optionFunc) apply(c *config) {
 	fn(c)
+}
+
+// WithServiceName - specifies the service name the exporter will report to xray
+func WithServiceName(name string) Option {
+	return optionFunc(func(c *config) {
+		c.name = name
+	})
 }
 
 // WithRegion - optional aws region to send xray messages to
@@ -141,6 +149,7 @@ type Exporter struct {
 	api      xrayiface.XRayAPI
 	onExport func(export OnExport)
 	logger   *log.Logger
+	name     string
 	service  *service
 	origin   string
 	wg       sync.WaitGroup // wg holds number of publishers in flight
@@ -237,6 +246,9 @@ func buildConfig(opts ...Option) (config, error) {
 		opt.apply(&c)
 	}
 
+	if name := os.Getenv("AWS_XRAY_TRACING_NAME"); name != "" {
+		c.name = name
+	}
 	if c.output == nil {
 		c.output = os.Stderr
 	}
@@ -279,6 +291,7 @@ func NewExporter(opts ...Option) (*Exporter, error) {
 	exporter := &Exporter{
 		api:      c.api,
 		onExport: c.onExport,
+		name:     c.name,
 		service:  c.service,
 		logger:   logger,
 
@@ -439,7 +452,7 @@ func (e *Exporter) ExportSpan(s *trace.SpanData) {
 
 func (e *Exporter) makeSegment(span *trace.SpanData) segment {
 	var (
-		s = rawSegment(span)
+		s = rawSegment(e.name, span)
 	)
 
 	if isRootSpan := span.ParentSpanID == zeroSpanID; isRootSpan {
