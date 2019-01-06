@@ -25,6 +25,7 @@ import (
 const (
 	httpHeaderMaxSize = 200
 	httpHeader        = `X-Amzn-Trace-Id`
+	prefixSelf        = "Self="
 	prefixRoot        = "Root="
 	prefixParent      = "Parent="
 	prefixSampled     = "Sampled="
@@ -44,31 +45,18 @@ func ParseTraceHeader(header string) (trace.SpanContext, bool) {
 		traceOptions  trace.TraceOptions
 	)
 
-	if strings.HasPrefix(header, prefixRoot) {
-		header = header[len(prefixRoot):]
-	}
-
-	// Parse the trace id field.
-	if index := strings.Index(header, `;`); index == -1 {
-		amazonTraceID, header = header, header[len(header):]
-	} else {
-		amazonTraceID, header = header[:index], header[index+1:]
-	}
-
-	if strings.HasPrefix(header, prefixParent) {
-		header = header[len(prefixParent):]
-
-		if index := strings.Index(header, `;`); index == -1 {
-			parentSpanID, header = header, header[len(header):]
-		} else {
-			parentSpanID, header = header[:index], header[index+1:]
+	for _, field := range strings.Split(header, ";") {
+		if field == "" {
+			continue
 		}
-	}
-
-	if strings.HasPrefix(header, prefixSampled) {
-		header = header[len(prefixSampled):]
-		if strings.HasPrefix(header, "1") {
+		if strings.HasPrefix(field, prefixRoot) {
+			amazonTraceID = field[len(prefixRoot):]
+		} else if strings.HasPrefix(field, prefixParent) {
+			parentSpanID = field[len(prefixParent):]
+		} else if field == prefixSampled+"1" {
 			traceOptions = 1
+		} else if strings.Index(field, "=") == -1 {
+			amazonTraceID = field
 		}
 	}
 

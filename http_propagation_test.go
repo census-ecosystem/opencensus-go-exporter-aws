@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -126,6 +127,67 @@ func TestSpanContextFromRequest(t *testing.T) {
 		}
 	})
 
+	t.Run("traceID with self", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
+		amazonTraceID := convertToAmazonTraceID(traceID)
+		req.Header.Set(httpHeader, prefixSelf+amazonTraceID+";"+prefixRoot+amazonTraceID)
+
+		sc, ok := format.SpanContextFromRequest(req)
+		if !ok {
+			t.Errorf("expected true; got false")
+		}
+		if traceID != sc.TraceID {
+			t.Errorf("expected %v; got %v", traceID, sc.TraceID)
+		}
+		if zeroSpanID != sc.SpanID {
+			t.Errorf("expected %v; got %v", zeroSpanID, sc.SpanID)
+		}
+		if 0 != sc.TraceOptions {
+			t.Errorf("expected 0; got %v", sc.TraceOptions)
+		}
+	})
+
+	t.Run("traceID with self and parentSpanID", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
+		amazonTraceID := convertToAmazonTraceID(traceID)
+		amazonSpanID := convertToAmazonSpanID(spanID)
+		req.Header.Set(httpHeader, prefixSelf+amazonTraceID+";"+prefixRoot+amazonTraceID+";"+prefixParent+amazonSpanID)
+
+		sc, ok := format.SpanContextFromRequest(req)
+		if !ok {
+			t.Errorf("expected true; got false")
+		}
+		if traceID != sc.TraceID {
+			t.Errorf("expected %v; got %v", traceID, sc.TraceID)
+		}
+		if spanID != sc.SpanID {
+			t.Errorf("expected %v; got %v", spanID, sc.SpanID)
+		}
+		if 0 != sc.TraceOptions {
+			t.Errorf("expected 0; got %v", sc.TraceOptions)
+		}
+	})
+
+	t.Run("traceID with self and sampled", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
+		amazonTraceID := convertToAmazonTraceID(traceID)
+		req.Header.Set(httpHeader, prefixSelf+amazonTraceID+";"+prefixRoot+amazonTraceID+";"+prefixSampled+"1")
+
+		sc, ok := format.SpanContextFromRequest(req)
+		if !ok {
+			t.Errorf("expected true; got false")
+		}
+		if traceID != sc.TraceID {
+			t.Errorf("expected %v; got %v", traceID, sc.TraceID)
+		}
+		if zeroSpanID != sc.SpanID {
+			t.Errorf("expected %v; got %v", zeroSpanID, sc.SpanID)
+		}
+		if 1 != sc.TraceOptions {
+			t.Errorf("expected 1; got %v", sc.TraceOptions)
+		}
+	})
+
 	t.Run("bad traceID", func(t *testing.T) {
 		var (
 			req = httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
@@ -146,6 +208,16 @@ func TestSpanContextFromRequest(t *testing.T) {
 		_, ok := format.SpanContextFromRequest(req)
 		if ok {
 			t.Errorf("expected false; got true")
+		}
+	})
+
+	t.Run("invalid header", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
+		req.Header.Set(httpHeader, ";invalid-header=")
+
+		_, ok := format.SpanContextFromRequest(req)
+		if ok {
+			t.Errorf("expected false, got true")
 		}
 	})
 }
@@ -187,4 +259,19 @@ func TestSpanContextToRequest(t *testing.T) {
 			t.Errorf("got %v; expected %v", expected, v)
 		}
 	})
+}
+
+func BenchmarkParseTraceHeader(b *testing.B) {
+	var (
+		root   = prefixRoot + "1-581cf771-a006649127e371903a2de979"
+		self   = prefixSelf + "1-581cf771-a006649127e371903a2de979"
+		parent = prefixParent + "0102030405060708"
+		header = strings.Join([]string{root, self, parent, prefixSampled + "1"}, ";")
+	)
+
+	for n := 0; n < b.N; n++ {
+		if _, ok := ParseTraceHeader(header); !ok {
+			b.FailNow()
+		}
+	}
 }
