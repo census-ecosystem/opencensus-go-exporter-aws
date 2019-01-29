@@ -395,7 +395,7 @@ func rawSegment(name string, span *trace.SpanData) segment {
 		namespace               string
 	)
 
-	if name == "" {
+	if span.Name != "" {
 		name = fixSegmentName(span.Name)
 	}
 	if span.HasRemoteParent {
