@@ -188,3 +188,80 @@ func TestSpanContextToRequest(t *testing.T) {
 		}
 	})
 }
+
+func TestParseTraceHeader(t *testing.T) {
+	testCases := map[string]struct {
+		header   string
+		traceID  string
+		parentID string
+		sampled  trace.TraceOptions
+		ok       bool
+	}{
+		"not-present": {
+			header:   "",
+			traceID:  "",
+			parentID: "",
+			sampled:  0,
+			ok:       false,
+		},
+		"root only": {
+			header:   "Root=1-5983f5c9-56dcf0bc6d4d214d2dbbe8c6",
+			traceID:  "5983f5c956dcf0bc6d4d214d2dbbe8c6",
+			parentID: "0000000000000000",
+			ok:       true,
+			sampled:  0,
+		},
+		"naked trace id": {
+			header:   "1-5983f5c9-56dcf0bc6d4d214d2dbbe8c6",
+			traceID:  "5983f5c956dcf0bc6d4d214d2dbbe8c6",
+			parentID: "0000000000000000",
+			ok:       true,
+			sampled:  0,
+		},
+		"root and parent": {
+			header:   "Root=1-5983f5c9-56dcf0bc6d4d214d2dbbe8c6;Parent=0102030405060708",
+			traceID:  "5983f5c956dcf0bc6d4d214d2dbbe8c6",
+			parentID: "0102030405060708",
+			ok:       true,
+			sampled:  0,
+		},
+		"with sampling": {
+			header:   "Root=1-5983f5c9-56dcf0bc6d4d214d2dbbe8c6;Parent=0102030405060708;Sampled=1",
+			traceID:  "5983f5c956dcf0bc6d4d214d2dbbe8c6",
+			parentID: "0102030405060708",
+			ok:       true,
+			sampled:  1,
+		},
+		"parent before root": {
+			header:   "Parent=0102030405060708;Root=1-5983f5c9-56dcf0bc6d4d214d2dbbe8c6",
+			traceID:  "5983f5c956dcf0bc6d4d214d2dbbe8c6",
+			parentID: "0102030405060708",
+			ok:       true,
+			sampled:  0,
+		},
+		"self is ignored": {
+			header:   "Self=blah;Parent=0102030405060708;Root=1-5983f5c9-56dcf0bc6d4d214d2dbbe8c6",
+			traceID:  "5983f5c956dcf0bc6d4d214d2dbbe8c6",
+			parentID: "0102030405060708",
+			ok:       true,
+			sampled:  0,
+		},
+	}
+
+	for label, tc := range testCases {
+		t.Run(label, func(t *testing.T) {
+			spanContext, ok := ParseTraceHeader(tc.header)
+			if got, want := ok, tc.ok; got != want {
+				t.Fatalf("got %v; want %v", got, want)
+			}
+			if ok {
+				if got, want := spanContext.TraceID.String(), tc.traceID; got != want {
+					t.Fatalf("got %v; want %v", got, want)
+				}
+				if got, want := spanContext.SpanID.String(), tc.parentID; got != want {
+					t.Fatalf("got %v; want %v", got, want)
+				}
+			}
+		})
+	}
+}

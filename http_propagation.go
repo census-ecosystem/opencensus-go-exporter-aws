@@ -28,6 +28,7 @@ const (
 	prefixRoot        = "Root="
 	prefixParent      = "Parent="
 	prefixSampled     = "Sampled="
+	separator         = ";" // separator used by x-ray to split parts of X-Amzn-Trace-Id header
 )
 
 // HTTPFormat implements propagation.HTTPFormat to propagate
@@ -39,46 +40,52 @@ var _ propagation.HTTPFormat = (*HTTPFormat)(nil)
 // ParseTraceHeader parses an Amazon trace header to OpenCensus span context.
 func ParseTraceHeader(header string) (trace.SpanContext, bool) {
 	var (
-		amazonTraceID string
-		parentSpanID  string
-		traceOptions  trace.TraceOptions
+		traceID      trace.TraceID
+		traceIDSet   bool
+		spanID       trace.SpanID
+		traceOptions trace.TraceOptions
 	)
 
-	if strings.HasPrefix(header, prefixRoot) {
-		header = header[len(prefixRoot):]
-	}
+	// Parse the parts of the amazon http trace id regardless of the
+	// order the parts appear in.
+	//
+	// In most cases, the Root= will be the first part.  However, in
+	// other cases (like an API Gateway proxy to an HTTP server), the
+	// leading part will be Self=
+	//
+	parts := strings.Split(header, separator)
+	for _, part := range parts {
+		switch {
+		case strings.HasPrefix(part, prefixRoot):
+			v, err := parseAmazonTraceID(part[len(prefixRoot):])
+			if err != nil {
+				return trace.SpanContext{}, false
+			}
+			traceID = v
+			traceIDSet = true
 
-	// Parse the trace id field.
-	if index := strings.Index(header, `;`); index == -1 {
-		amazonTraceID, header = header, header[len(header):]
-	} else {
-		amazonTraceID, header = header[:index], header[index+1:]
-	}
+		case strings.HasPrefix(part, prefixParent):
+			v, err := parseAmazonSpanID(part[len(prefixParent):])
+			if err != nil {
+				return trace.SpanContext{}, false
+			}
+			spanID = v
 
-	if strings.HasPrefix(header, prefixParent) {
-		header = header[len(prefixParent):]
+		case strings.HasPrefix(part, prefixSampled):
+			if part[len(prefixParent)+1] == '1' {
+				traceOptions = 1
+			}
 
-		if index := strings.Index(header, `;`); index == -1 {
-			parentSpanID, header = header, header[len(header):]
-		} else {
-			parentSpanID, header = header[:index], header[index+1:]
+		default:
+			// possibly a naked trace id.  because we're not sure, we won't bail
+			// on failure.
+			if v, err := parseAmazonTraceID(part); err == nil {
+				traceID = v
+				traceIDSet = true
+			}
 		}
 	}
-
-	if strings.HasPrefix(header, prefixSampled) {
-		header = header[len(prefixSampled):]
-		if strings.HasPrefix(header, "1") {
-			traceOptions = 1
-		}
-	}
-
-	traceID, err := parseAmazonTraceID(amazonTraceID)
-	if err != nil {
-		return trace.SpanContext{}, false
-	}
-
-	spanID, err := parseAmazonSpanID(parentSpanID)
-	if err != nil {
+	if !traceIDSet {
 		return trace.SpanContext{}, false
 	}
 
