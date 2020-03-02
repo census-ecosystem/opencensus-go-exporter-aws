@@ -16,14 +16,18 @@ package aws
 
 import (
 	"context"
+	crand "crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"regexp"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -464,4 +468,67 @@ func (e *Exporter) makeSegment(span *trace.SpanData) segment {
 	}
 
 	return s
+}
+
+type xrayIDGenerator struct {
+	sync.Mutex
+
+	// Please keep these as the first fields
+	// so that these 8 byte fields will be aligned on addresses
+	// divisible by 8, on both 32-bit and 64-bit machines when
+	// performing atomic increments and accesses.
+	// See:
+	// * https://github.com/census-instrumentation/opencensus-go/issues/587
+	// * https://github.com/census-instrumentation/opencensus-go/issues/865
+	// * https://golang.org/pkg/sync/atomic/#pkg-note-BUG
+	nextSpanID uint64
+	spanIDInc  uint64
+
+	traceIDAdd  [2]uint64
+	traceIDRand *rand.Rand
+}
+
+func NewIDGenerator() *xrayIDGenerator {
+	gen := &xrayIDGenerator{}
+	// initialize traceID and spanID generators.
+
+	var rngSeed int64
+	for _, p := range []interface{}{
+		&rngSeed, &gen.traceIDAdd, &gen.nextSpanID, &gen.spanIDInc,
+	} {
+		binary.Read(crand.Reader, binary.LittleEndian, p)
+	}
+	gen.traceIDRand = rand.New(rand.NewSource(rngSeed))
+	gen.spanIDInc |= 1
+
+	return gen
+
+}
+
+// NewSpanID returns a non-zero span ID from a randomly-chosen sequence.
+func (gen *xrayIDGenerator) NewSpanID() [8]byte {
+	var id uint64
+	for id == 0 {
+		id = atomic.AddUint64(&gen.nextSpanID, gen.spanIDInc)
+	}
+	var sid [8]byte
+	binary.LittleEndian.PutUint64(sid[:], id)
+	return sid
+}
+
+// NewTraceID returns a non-zero trace ID from a randomly-chosen sequence.
+// mu should be held while this function is called. convertToAmazonTraceID
+// expects first 4 bytes to be current unix timestamp
+func (gen *xrayIDGenerator) NewTraceID() [16]byte {
+	var tid [16]byte
+	// Construct the trace ID from two outputs of traceIDRand, with a constant
+	// added to each half for additional entropy.
+	gen.Lock()
+
+	binary.BigEndian.PutUint32(tid[0:4], uint32(time.Now().Unix()))
+	binary.BigEndian.PutUint32(tid[4:8], gen.traceIDRand.Uint32())
+	binary.BigEndian.PutUint64(tid[8:16], gen.traceIDRand.Uint64()+gen.traceIDAdd[1])
+
+	gen.Unlock()
+	return tid
 }

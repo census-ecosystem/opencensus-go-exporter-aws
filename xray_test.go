@@ -565,3 +565,18 @@ func TestLookupRegionFromMetaData(t *testing.T) {
 		})
 	}
 }
+
+func TestIDGenerator(t *testing.T) {
+	gen := NewIDGenerator()
+
+	sid := gen.NewSpanID()
+	tid := gen.NewTraceID()
+
+	if len(sid) != 8 {
+		t.Errorf("span id wrong length; want 8, got %d", len(sid))
+	}
+
+	if len(tid) != 16 {
+		t.Errorf("span id wrong length; want 16, got %d", len(tid))
+	}
+}
