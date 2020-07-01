@@ -252,9 +252,6 @@ func buildConfig(opts ...Option) (config, error) {
 	if c.output == nil {
 		c.output = os.Stderr
 	}
-	if c.onExport == nil {
-		c.onExport = func(export OnExport) {}
-	}
 	if c.interval <= 0 {
 		c.interval = defaultInterval
 	}
@@ -350,8 +347,6 @@ func (e *Exporter) makeInput(spans []*trace.SpanData) (xray.PutTraceSegmentsInpu
 }
 
 func (e *Exporter) publish(spans []*trace.SpanData) {
-	defer e.wg.Done()
-
 	var (
 		input, traceIDs = e.makeInput(spans)
 	)
@@ -362,8 +357,14 @@ func (e *Exporter) publish(spans []*trace.SpanData) {
 	for attempt := 0; attempt < 3; attempt++ {
 		_, err := e.api.PutTraceSegments(&input)
 		if err == nil {
-			for _, traceID := range traceIDs {
-				go e.onExport(OnExport{TraceID: traceID})
+			if e.onExport != nil {
+				e.wg.Add(len(traceIDs))
+				for _, traceID := range traceIDs {
+					go func() {
+						defer e.wg.Done()
+						e.onExport(OnExport{TraceID: traceID})
+					}()
+				}
 			}
 			return
 		}
@@ -387,7 +388,10 @@ func (e *Exporter) flush() {
 	e.offset = 0
 
 	e.wg.Add(1)
-	go e.publish(spans)
+	go func() {
+		defer e.wg.Done()
+		e.publish(spans)
+	}()
 }
 
 func (e *Exporter) publishAtInterval(interval time.Duration) {
