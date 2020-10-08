@@ -384,8 +384,8 @@ func TestOptions(t *testing.T) {
 		// Then
 		select {
 		case segment := <-api.ch:
-			if name != segment.Name {
-				t.Errorf("expected %v; got %v", name, segment.Name)
+			if segment.Name != "span" && segment.Name != "nospan" {
+				t.Errorf("expected 'span' or 'nospan'; got %v", segment.Name)
 			}
 			if segment.Service == nil || segment.Service.Version != version {
 				t.Errorf("expected %v; got %#v", version, segment.Service)
